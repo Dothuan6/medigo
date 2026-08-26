@@ -44,16 +44,42 @@ const MEDIGO_SEED = {
     { code: "CN02", qty: 1 }
   ],
 
-  // Xu hướng hoa hồng 7 ngày gần nhất (A10)
-  commissionTrend7Days: [
-    { day: "T4 (20/08)", amount: 300000 },
-    { day: "T5 (21/08)", amount: 1500000 },
-    { day: "T6 (22/08)", amount: 800000 },
-    { day: "T7 (23/08)", amount: 2000000 },
-    { day: "CN (24/08)", amount: 500000 },
-    { day: "T2 (25/08)", amount: 1200000 },
-    { day: "Hôm nay", amount: 1500000 }
+  /**
+   * Hoa hồng theo giờ trong ngày hôm nay — dùng cho bộ lọc "Hôm nay" (A10).
+   */
+  commissionToday: [
+    { label: "08h", amount: 0 },
+    { label: "10h", amount: 500000 },
+    { label: "12h", amount: 0 },
+    { label: "14h", amount: 1000000 },
+    { label: "16h", amount: 0 },
+    { label: "18h", amount: 0 }
   ],
+
+  /**
+   * Hoa hồng theo từng ngày, 60 ngày gần nhất tính tới 26/08/2026.
+   * Là nguồn duy nhất để dựng biểu đồ cho các khoảng Tuần / Tháng / Tùy chọn —
+   * không lưu sẵn số đã gộp, tránh lệch khi đổi khoảng lọc.
+   * Sinh bằng hàm tất định (không dùng Math.random) để mọi lần chạy đều giống nhau.
+   */
+  commissionDaily: (function () {
+    const out = [];
+    const end = new Date(2026, 7, 26); // 26/08/2026
+    // Mẫu lặp theo thứ trong tuần: cuối tuần thấp, giữa tuần cao
+    const byWeekday = [500000, 1200000, 300000, 1500000, 800000, 2000000, 500000];
+    for (let i = 59; i >= 0; i--) {
+      const d = new Date(end.getTime());
+      d.setDate(d.getDate() - i);
+      const base = byWeekday[d.getDay()];
+      // Nhiễu tất định theo ngày trong tháng, để biểu đồ không phẳng lì
+      const wobble = ((d.getDate() * 37) % 5) - 2; // -2..2
+      out.push({
+        date: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`,
+        amount: Math.max(0, base + wobble * 100000)
+      });
+    }
+    return out;
+  })(),
 
   // Danh sách tổng hợp tuyến dưới 7 tầng của Seller 923983 (A10)
   // Quy định: CHỈ hiển thị tên viết tắt, ngày tham gia, số đơn (KHÔNG lộ SĐT, email)
@@ -325,11 +351,11 @@ const MedigoStore = {
   PREFIX: 'MEDIGO_',
   // Tăng số này mỗi khi đổi cấu trúc dữ liệu để trình duyệt cũ nạp lại seed,
   // tránh trường hợp localStorage giữ dữ liệu theo schema cũ gây lỗi render.
-  SCHEMA_VERSION: 2,
+  SCHEMA_VERSION: 3,
 
   // Các khóa được seed từ MEDIGO_SEED khi khởi tạo
   SEEDED_KEYS: [
-    'currentSeller', 'cart', 'commissionTrend7Days', 'downlineTiers',
+    'currentSeller', 'cart', 'commissionToday', 'commissionDaily', 'downlineTiers',
     'sellerCommissionHistory', 'customerOrders', 'adminMembers', 'adminWithdrawals'
   ],
 
@@ -370,7 +396,74 @@ const MedigoStore = {
   // ---------- Đọc ----------
   getSeller:      function() { return this.get('currentSeller', MEDIGO_SEED.currentSeller); },
   getCart:        function() { return this.get('cart', []); },
-  getTrend:       function() { return this.get('commissionTrend7Days', MEDIGO_SEED.commissionTrend7Days); },
+  getDaily:       function() { return this.get('commissionDaily', MEDIGO_SEED.commissionDaily); },
+  getToday:       function() { return this.get('commissionToday', MEDIGO_SEED.commissionToday); },
+
+  /**
+   * Dữ liệu biểu đồ hoa hồng theo khoảng lọc (A10).
+   * rangeId: 'today' | 'week' | 'month' | 'custom'
+   * from/to: chuỗi yyyy-mm-dd, chỉ dùng khi rangeId = 'custom'.
+   * Trả về { points: [{label, amount}], total, subtitle }.
+   */
+  getCommissionSeries: function(rangeId, from, to) {
+    const daily = this.getDaily();
+    const sum = (list) => list.reduce((t, x) => t + x.amount, 0);
+
+    if (rangeId === 'today') {
+      const pts = this.getToday().map(h => ({ label: h.label, amount: h.amount }));
+      return { points: pts, total: sum(pts), subtitle: 'Hôm nay, theo giờ' };
+    }
+
+    if (rangeId === 'month') {
+      // Gộp 28 ngày gần nhất thành 4 tuần
+      const last28 = daily.slice(-28);
+      const pts = [];
+      for (let w = 0; w < 4; w++) {
+        const chunk = last28.slice(w * 7, w * 7 + 7);
+        pts.push({ label: `Tuần ${w + 1}`, amount: sum(chunk) });
+      }
+      return { points: pts, total: sum(pts), subtitle: '4 tuần gần nhất' };
+    }
+
+    if (rangeId === 'custom') {
+      const parse = (s) => {
+        if (!s) return null;
+        const p = String(s).split('-');
+        return p.length === 3 ? new Date(+p[0], +p[1] - 1, +p[2]) : null;
+      };
+      const f = parse(from), t = parse(to);
+      let rows = daily;
+      if (f || t) {
+        rows = daily.filter(r => {
+          const d = MEDIGO_RULES.parseDate(r.date);
+          if (!d) return false;
+          if (f && d < f) return false;
+          if (t && d > t) return false;
+          return true;
+        });
+      }
+      // Quá nhiều ngày thì gộp theo tuần cho biểu đồ đọc được
+      if (rows.length > 14) {
+        const pts = [];
+        for (let i = 0; i < rows.length; i += 7) {
+          const chunk = rows.slice(i, i + 7);
+          pts.push({ label: chunk[0].date.slice(0, 5), amount: sum(chunk) });
+        }
+        return { points: pts, total: sum(pts), subtitle: `${rows.length} ngày, gộp theo tuần` };
+      }
+      const pts = rows.map(r => ({ label: r.date.slice(0, 5), amount: r.amount }));
+      return { points: pts, total: sum(pts), subtitle: rows.length ? `${rows.length} ngày` : 'Không có dữ liệu trong khoảng đã chọn' };
+    }
+
+    // Mặc định: 'week' — 7 ngày gần nhất
+    const last7 = daily.slice(-7);
+    const pts = last7.map((r, i) => ({
+      label: i === last7.length - 1 ? 'Hôm nay' : r.date.slice(0, 5),
+      amount: r.amount
+    }));
+    return { points: pts, total: sum(pts), subtitle: '7 ngày gần nhất' };
+  },
+
   getDownlines:   function() { return this.get('downlineTiers', MEDIGO_SEED.downlineTiers); },
   getHistory:     function() { return this.get('sellerCommissionHistory', MEDIGO_SEED.sellerCommissionHistory); },
   getOrders:      function() { return this.get('customerOrders', MEDIGO_SEED.customerOrders); },
@@ -401,6 +494,14 @@ const MedigoStore = {
   },
 
   clearCart: function() { this.set('cart', []); },
+
+  /** Cổng thanh toán khách đã chọn ở màn nhận hàng (A2), dùng lại ở màn QR (A3). */
+  getPaymentMethod: function() {
+    return this.get('paymentMethod', MEDIGO_CONFIG.defaultPaymentMethod);
+  },
+  setPaymentMethod: function(id) {
+    if (MEDIGO_CONFIG.paymentMethods.some(p => p.id === id)) this.set('paymentMethod', id);
+  },
 
   /** Kích hoạt mã phần mềm của một đơn — mốc tính hạn 1 năm bắt đầu từ đây. */
   activateOrder: function(orderId, today) {

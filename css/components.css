@@ -292,6 +292,71 @@
   .form-grid-3 { grid-template-columns: repeat(3, 1fr); }
 }
 
+/* ---------- Bố cục 2 cột màn nhận hàng (A2) ---------- */
+.checkout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s7);
+  align-items: start;
+}
+
+/* Theo mockup: cột phải cố định 380px, cột trái co giãn */
+@media (min-width: 900px) {
+  .checkout-grid { grid-template-columns: minmax(0, 1fr) 380px; }
+  .checkout-aside {
+    position: sticky;
+    top: 88px; /* chừa chỗ cho header dính */
+  }
+}
+
+.checkout-main,
+.checkout-aside { min-width: 0; }
+
+.checkout-submit { margin-top: var(--s6); }
+
+/* Dòng sản phẩm trong thẻ Thông tin đơn hàng */
+.order-item {
+  display: flex;
+  gap: var(--s5);
+  align-items: flex-start;
+}
+
+.order-item-thumb {
+  width: 72px;
+  height: 72px;
+  flex: none;
+  object-fit: cover;
+  object-position: left center;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.order-item-body { min-width: 0; }
+
+.order-item-name {
+  font-weight: 700;
+  color: var(--c1);
+  font-size: 16px;
+  margin-bottom: var(--s2);
+}
+
+/* ---------- Tiêu đề bước đăng ký (A6–A8) ---------- */
+/* Theo mockup: tiêu đề lớn + dòng bước nhỏ bên dưới, thanh tiến trình ở trên cùng */
+.step-heading {
+  text-align: center;
+  margin-bottom: var(--s8);
+}
+.step-heading h2 {
+  font-size: 24px;
+  color: var(--c1);
+  margin-bottom: var(--s1);
+}
+.step-subtitle {
+  font-size: 15px;
+  color: var(--c5);
+}
+
 .label-row {
   display: flex;
   align-items: center;
@@ -301,15 +366,24 @@
 }
 .label-row label { margin-bottom: 0; }
 
+/* Thẻ chọn cổng thanh toán — nhiều lựa chọn, chỉ thẻ đang chọn được tô nổi */
 .payment-option {
   display: flex;
   align-items: center;
   gap: var(--s5);
-  border: 2px solid var(--c6);
+  border: 2px solid var(--border);
   border-radius: var(--r-md);
   padding: var(--s6);
-  background-color: var(--tint-blue);
+  background-color: var(--c12);
   cursor: pointer;
+  margin-bottom: var(--s4);
+  transition: var(--transition-fast);
+}
+.payment-option:last-child { margin-bottom: 0; }
+.payment-option:hover { border-color: var(--c7); background-color: var(--surface); }
+.payment-option.is-selected {
+  border-color: var(--c6);
+  background-color: var(--tint-blue);
 }
 .payment-option input[type="radio"] {
   width: 24px;
@@ -322,6 +396,88 @@
   color: var(--c1);
   font-size: 17px;
 }
+
+/* Ô logo của đối tác thanh toán (VNPAY / Viettel Money) */
+.payment-logo {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  height: 34px;
+  padding: 0 var(--s3);
+  border-radius: var(--r-sm);
+  color: var(--c12);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.qr-provider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s4);
+  margin-top: var(--s5);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--c5);
+  letter-spacing: 0.04em;
+}
+
+/* ---------- Bộ lọc khoảng thống kê (A10) ---------- */
+.range-tabs {
+  display: flex;
+  gap: var(--s3);
+  overflow-x: auto;
+  padding-bottom: var(--s2);
+  margin-bottom: var(--s5);
+}
+
+.range-tab {
+  flex: none;
+  min-height: 44px;
+  padding: var(--s3) var(--s6);
+  border-radius: var(--r-xl);
+  border: 1px solid var(--c7);
+  background: var(--c12);
+  color: var(--c2);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition-fast);
+}
+.range-tab:hover { border-color: var(--c6); color: var(--c6); }
+.range-tab.active {
+  border-color: var(--c6);
+  background: var(--tint-blue);
+  color: var(--c6);
+}
+
+.range-custom {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+  margin-bottom: var(--s5);
+  min-width: 0;
+}
+/* Hai ô ngày phải co được, nếu không sẽ đẩy thẻ tràn ngang ở màn 360px */
+.range-custom .form-control {
+  flex: 1 1 140px;
+  width: auto;
+  min-width: 0;
+}
+.range-custom label { margin-bottom: 0; white-space: nowrap; flex: none; }
+.range-custom.is-hidden { display: none; }
+
+.chart-total {
+  font-size: 15px;
+  color: var(--c2);
+  margin-bottom: var(--s5);
+}
+.chart-total strong { font-size: 18px; white-space: nowrap; }
 
 .password-field {
   display: flex;
@@ -410,6 +566,83 @@
   flex-direction: column;
   gap: var(--s4);
 }
+
+/* ---------- Modal thanh toán QR (A3, đè lên A2) ---------- */
+.qr-modal-card {
+  max-width: 420px;
+  text-align: center;
+  max-height: calc(100vh - var(--s9));
+  overflow-y: auto;
+}
+
+.qr-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s4);
+  text-align: left;
+  margin-bottom: var(--s6);
+}
+.qr-modal-head .modal-title { margin-bottom: 2px; }
+
+.qr-modal-card .qr-frame {
+  display: inline-block;
+  margin: 0 0 var(--s5);
+  padding: var(--s5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--c12);
+  box-shadow: none;
+}
+
+.qr-modal-card .qr-timer-block {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s3);
+  margin-bottom: var(--s5);
+}
+.qr-modal-card .qr-timer { font-size: 20px; }
+
+/* Khối số tiền / nội dung CK / người nhận */
+.qr-info {
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s5) var(--s6);
+  margin-bottom: var(--s5);
+}
+.qr-info .summary-line { font-size: 15px; }
+
+.qr-modal-card .waiting-row {
+  font-size: 15px;
+  margin-bottom: var(--s5);
+}
+
+.qr-modal-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s5);
+  flex-wrap: wrap;
+  margin-top: var(--s4);
+}
+
+/* ---------- Modal kích hoạt seller thành công (A9, đè lên A8) ---------- */
+.activated-modal-card {
+  max-width: 440px;
+  text-align: center;
+  max-height: calc(100vh - var(--s9));
+  overflow-y: auto;
+}
+.activated-modal-card .result-icon {
+  width: 72px;
+  height: 72px;
+  margin-bottom: var(--s5);
+}
+.activated-modal-card .modal-text { margin-bottom: var(--s7); }
+.activated-modal-card .modal-actions-column { margin-top: var(--s7); }
 
 /* ---------- Toast ---------- */
 .toast {

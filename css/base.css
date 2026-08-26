@@ -227,6 +227,10 @@ summary:focus-visible,
   gap: 4px;
 }
 
+/* .error-message là flex nên text-align không có tác dụng —
+   phải canh giữa bằng justify-content (dùng ở thông báo OTP sai). */
+.error-message.text-center { justify-content: center; }
+
 /* Badges trạng thái theo bảng Spec Sec 3 */
 .badge {
   display: inline-flex;

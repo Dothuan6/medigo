@@ -19,10 +19,26 @@ const MEDIGO_CONFIG = {
     expiringSoonDays: 30, // Dưới ngưỡng này thì chuyển trạng thái "Sắp hết hạn"
     storageYears: 10,
     storageSizeMB: 50,
-    images: [
-      "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&auto=format&fit=crop&q=80",
-      "https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?w=800&auto=format&fit=crop&q=80",
-      "https://images.unsplash.com/photo-1551076805-e1869033e561?w=800&auto=format&fit=crop&q=80"
+
+    /**
+     * Bộ ảnh giới thiệu gói CN02, lấy từ mock/assets (ảnh gốc của GoCare).
+     * Mỗi ảnh 1890x1063 (16:9) nên khung ảnh dùng object-fit: contain —
+     * đây là ảnh infographic có chữ, cắt cover sẽ mất nội dung.
+     * Tên file gốc có dấu cách và ngoặc nên phải mã hóa URL (%20).
+     */
+    gallery: [
+      { src: "./mock/assets/nc%20(1).png", title: "Theo dõi, quản lý sức khỏe cá nhân",
+        alt: "Theo dõi, quản lý sức khỏe cá nhân trên nền tảng GOCARE" },
+      { src: "./mock/assets/nc%20(2).png", title: "Thu nhận dữ liệu vào APP",
+        alt: "Thu nhận dữ liệu từ thiết bị đo, nhập thủ công và chụp OCR vào ứng dụng" },
+      { src: "./mock/assets/nc%20(3).png", title: "Lưu trữ dữ liệu sức khỏe",
+        alt: "Lưu trữ dữ liệu sức khỏe 10 năm, dung lượng tối đa 50MB" },
+      { src: "./mock/assets/nc%20(4).png", title: "Chia sẻ thông tin sức khỏe online",
+        alt: "Chia sẻ dữ liệu sức khỏe với Trung tâm TT247 GOCARE và người thân" },
+      { src: "./mock/assets/nc%20(5).png", title: "Cảnh báo và hỗ trợ khẩn cấp (SOS)",
+        alt: "Cảnh báo chỉ số bất thường, Callbot gọi người thân và nút SOS trên ứng dụng" },
+      { src: "./mock/assets/nc%20(6).png", title: "Theo dõi và chăm sóc sức khỏe từ xa",
+        alt: "Trung tâm TT247 GOCARE theo dõi và hỗ trợ sức khỏe từ xa" }
     ]
   },
 
@@ -52,6 +68,30 @@ const MEDIGO_CONFIG = {
     taxThreshold: 2000000, // Chỉ khấu trừ thuế nếu số tiền rút > 2.000.000đ (mẫu)
     estimatedProcessingDays: "1 - 3 ngày làm việc"
   },
+
+  /**
+   * Các cổng thanh toán hiển thị ở màn nhận hàng.
+   * Lấy đúng theo mockup 26/08 khách đã duyệt (VNPAY · Viettel Money).
+   * `brandColor` là màu thương hiệu của đối tác thanh toán — nằm ngoài bảng token
+   * của GoCare một cách hợp lệ, giống như logo của họ.
+   */
+  paymentMethods: [
+    { id: 'vnpay',        label: 'Thanh toán bằng VNPAY',         shortLabel: 'VNPAY',         logoText: 'VN',  brandColor: '#005BAA' },
+    { id: 'viettelmoney', label: 'Thanh toán bằng Viettel Money', shortLabel: 'Viettel Money', logoText: 'VTM', brandColor: '#EE0033' }
+  ],
+  defaultPaymentMethod: 'vnpay',
+
+  /**
+   * Bộ lọc khoảng thời gian của biểu đồ thống kê trên dashboard seller.
+   * Lấy đúng theo mockup 26/08 (RANGES), mặc định 'week'.
+   */
+  statRanges: [
+    { id: 'today',  label: 'Hôm nay' },
+    { id: 'week',   label: 'Tuần' },
+    { id: 'month',  label: 'Tháng' },
+    { id: 'custom', label: 'Tùy chọn' }
+  ],
+  defaultStatRange: 'week',
 
   // Cấu hình mã QR & Đếm ngược
   qrPayment: {
@@ -162,6 +202,19 @@ const MEDIGO_RULES = {
       return { ok: false, message: `Số tiền rút vượt quá số dư khả dụng (${MEDIGO_RULES.formatMoney(availableBalance)}).` };
     }
     return { ok: true, message: '' };
+  },
+
+  /** Cổng thanh toán theo id. */
+  paymentMethod: function(id) {
+    return MEDIGO_CONFIG.paymentMethods.find(p => p.id === id)
+        || MEDIGO_CONFIG.paymentMethods.find(p => p.id === MEDIGO_CONFIG.defaultPaymentMethod)
+        || MEDIGO_CONFIG.paymentMethods[0];
+  },
+
+  /** Nhãn của một khoảng thống kê. */
+  statRangeLabel: function(id) {
+    const r = MEDIGO_CONFIG.statRanges.find(x => x.id === id);
+    return r ? r.label : '';
   },
 
   /** Định dạng tiền: 10.000.000đ */
