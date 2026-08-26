@@ -1,0 +1,473 @@
+/* =====================================================
+   Medigo — Component dùng chung cho cả Nhóm A và Nhóm B
+   Mọi style ở đây thay cho inline style trong views.js.
+   Ràng buộc: cỡ chữ >= 14px, vùng bấm >= 44x44px, màu chỉ lấy từ token.
+   ===================================================== */
+
+/* ---------- Biểu tượng SVG (thay cho emoji) ---------- */
+.ico {
+  flex-shrink: 0;
+  vertical-align: -0.18em;
+}
+
+/* ---------- Biến thể nút bổ sung ---------- */
+.btn-lg {
+  min-height: 52px;
+  padding: 12px var(--s8);
+  font-size: 17px;
+}
+
+/* Nút nhỏ trong bảng/khối — vẫn giữ vùng bấm 44px theo A11y */
+.btn-compact {
+  padding: 6px var(--s5);
+  font-size: 14px;
+}
+
+/* Nút dạng chữ (không nền, không viền) */
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--c6);
+  font-weight: 700;
+  padding: 10px var(--s3);
+  text-decoration: none;
+}
+.btn-link:hover:not(:disabled) {
+  background-color: var(--tint-blue);
+  text-decoration: underline;
+}
+.btn-link:disabled {
+  background: none !important;
+  border: none !important;
+  color: var(--c5) !important;
+}
+
+.btn-processing {
+  color: var(--c6);
+  font-weight: 700;
+}
+
+/* ---------- Tiện ích chữ / khối ---------- */
+.text-strong  { color: var(--c1); font-weight: 700; }
+.text-primary { color: var(--c6); }
+.text-success { color: var(--c8); }
+.text-warning { color: var(--c9); }
+.text-error   { color: var(--err); }
+.text-left    { text-align: left; }
+
+.mt-lg { margin-top: var(--s8); }
+
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: var(--s6) 0;
+}
+.divider-dashed { border-top-style: dashed; }
+
+/* ---------- Khung trang ---------- */
+.page-wide {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--s8);
+}
+
+.page-narrow {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--s8);
+}
+.page-narrow-md { max-width: 800px; }
+.page-narrow-sm { max-width: 680px; }
+.page-narrow-xs { max-width: 500px; }
+
+.page-title {
+  font-size: 26px;
+  margin-bottom: var(--s7);
+}
+
+.page-lead {
+  color: var(--c5);
+  font-size: 16px;
+  margin-bottom: var(--s6);
+}
+
+.section-title {
+  font-size: 24px;
+  margin-bottom: var(--s4);
+}
+
+.section-lead {
+  font-size: 16px;
+  color: var(--c2);
+  margin-bottom: var(--s8);
+}
+
+.card-title {
+  margin-bottom: var(--s6);
+}
+
+.card-lead {
+  margin-bottom: var(--s6);
+}
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  margin-bottom: var(--s5);
+}
+
+.section-card.bordered {
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  margin-bottom: var(--s7);
+}
+
+/* ---------- Dòng tổng kết tiền ---------- */
+.summary-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s5);
+  margin-bottom: var(--s4);
+  font-size: 16px;
+}
+.summary-line:last-child { margin-bottom: 0; }
+
+.summary-strong { font-size: 20px; }
+
+.summary-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s5);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.copy-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+/* ---------- Callout (thay cho .bg-light-* inline) ---------- */
+.callout {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s4);
+  padding: var(--s5) var(--s6);
+  border-radius: var(--r-md);
+  font-size: 15px;
+  color: var(--c1);
+  margin-bottom: var(--s7);
+}
+.callout-info    { background-color: var(--tint-blue);   border: 1px solid var(--c6); }
+.callout-warning { background-color: var(--tint-yellow); border: 1px solid var(--c11); }
+.callout-success { background-color: var(--tint-green);  border: 1px solid var(--c8); }
+.callout-error   { background-color: var(--tint-red);    border: 1px solid var(--err); }
+
+/* ---------- Trạng thái rỗng ---------- */
+.empty-state {
+  text-align: center;
+  padding: var(--s11) var(--s8);
+  color: var(--c5);
+}
+.empty-state-icon { display: inline-block; color: var(--c7); }
+.empty-state-title {
+  margin: var(--s6) 0 var(--s3);
+  color: var(--c1);
+  font-size: 20px;
+}
+.empty-state-desc {
+  color: var(--c5);
+  margin-bottom: var(--s8);
+  font-size: 16px;
+}
+
+/* ---------- Kết quả (thành công / lỗi) ---------- */
+.result-icon {
+  width: 90px;
+  height: 90px;
+  border-radius: var(--r-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--s6);
+}
+.result-icon-success { background-color: var(--tint-green);  color: var(--c8); }
+.result-icon-error   { background-color: var(--tint-red);    color: var(--err); }
+.result-icon-warning { background-color: var(--tint-yellow); color: var(--c9); }
+
+.result-title {
+  color: var(--c1);
+  font-size: 28px;
+  margin-bottom: var(--s3);
+}
+
+.result-actions {
+  display: flex;
+  gap: var(--s5);
+  flex-wrap: wrap;
+  margin-top: var(--s8);
+}
+.result-actions > .btn { flex: 1 1 220px; }
+
+.result-actions-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+.hotline-note {
+  margin-top: var(--s10);
+  font-size: 15px;
+  color: var(--c5);
+}
+
+/* ---------- Lưới form ---------- */
+.form-grid-2,
+.form-grid-3 {
+  display: grid;
+  gap: var(--s5);
+}
+@media (min-width: 720px) {
+  .form-grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .form-grid-3 { grid-template-columns: repeat(3, 1fr); }
+}
+
+.label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
+  flex-wrap: wrap;
+}
+.label-row label { margin-bottom: 0; }
+
+.payment-option {
+  display: flex;
+  align-items: center;
+  gap: var(--s5);
+  border: 2px solid var(--c6);
+  border-radius: var(--r-md);
+  padding: var(--s6);
+  background-color: var(--tint-blue);
+  cursor: pointer;
+}
+.payment-option input[type="radio"] {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  accent-color: var(--c6);
+}
+.payment-option strong {
+  display: block;
+  color: var(--c1);
+  font-size: 17px;
+}
+
+.password-field {
+  display: flex;
+  gap: var(--s3);
+}
+.password-field .form-control { flex: 1; }
+.password-toggle { flex-shrink: 0; min-width: 64px; }
+
+/* ---------- Điều khoản (A8) ---------- */
+.terms-box {
+  height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--c7);
+  border-radius: var(--r-md);
+  padding: var(--s7);
+  font-size: 15px;
+  color: var(--c2);
+  background: var(--surface);
+  margin-bottom: var(--s6);
+}
+.terms-box p { margin-bottom: var(--s4); }
+.terms-title { margin-bottom: var(--s4); font-size: 17px; }
+
+.terms-check {
+  display: flex;
+  gap: var(--s5);
+  align-items: flex-start;
+  cursor: pointer;
+  margin-bottom: var(--s8);
+  min-height: 44px;
+  font-size: 16px;
+}
+.terms-check input[type="checkbox"] {
+  width: 24px;
+  height: 24px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--c6);
+}
+
+/* ---------- Thanh tiến trình thời hạn ---------- */
+.progress-track {
+  background: var(--border);
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  margin: var(--s4) 0;
+}
+.progress-fill {
+  background: var(--c8);
+  height: 100%;
+  transition: width 0.3s ease;
+}
+.progress-fill.is-warning { background: var(--c9); }
+
+/* ---------- Modal bổ sung ---------- */
+.modal-card { position: relative; }
+
+.modal-close-corner {
+  position: absolute;
+  top: var(--s4);
+  right: var(--s4);
+}
+
+.modal-icon {
+  color: var(--c6);
+  margin-bottom: var(--s3);
+}
+
+.modal-title { margin-bottom: var(--s4); }
+
+.modal-text {
+  color: var(--c2);
+  margin-bottom: var(--s7);
+  font-size: 16px;
+}
+
+.modal-actions {
+  display: flex;
+  gap: var(--s4);
+}
+.modal-actions > .btn { flex: 1; }
+
+.modal-actions-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: var(--s9);
+  transform: translate(-50%, 20px);
+  background-color: var(--c1);
+  color: var(--c12);
+  padding: var(--s5) var(--s8);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  font-size: 15px;
+  font-weight: 600;
+  max-width: min(90vw, 520px);
+  text-align: center;
+  z-index: 2000;
+  opacity: 0;
+  visibility: hidden;
+  transition: var(--transition-fast);
+}
+.toast.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
+/* ---------- Phân trang bảng admin ---------- */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s5);
+  flex-wrap: wrap;
+  padding: var(--s6) 0;
+}
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+}
+.pagination-current {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--c1);
+}
+
+/* ---------- Khối mô phỏng demo ---------- */
+.demo-hint {
+  margin-top: var(--s10);
+  padding: var(--s5);
+  background: var(--tint-green);
+  border: 1px dashed var(--c8);
+  border-radius: var(--r-md);
+  font-size: 15px;
+}
+.demo-hint-label {
+  display: block;
+  color: var(--c8);
+  font-weight: 700;
+  margin-bottom: var(--s3);
+}
+
+.demo-variant-switch {
+  display: flex;
+  gap: var(--s2);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--s8);
+}
+.demo-variant-switch .btn.active {
+  border-color: var(--c6);
+  color: var(--c6);
+}
+
+/* ---------- Thanh chuyển màn demo (góc phải trên) ---------- */
+.demo-toolbar {
+  position: fixed;
+  top: var(--s4);
+  right: var(--s4);
+  z-index: 9999;
+  background: var(--c1);
+  color: var(--c12);
+  padding: var(--s3) var(--s5);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  max-width: calc(100vw - var(--s8));
+}
+.demo-toolbar-title {
+  color: var(--c6);
+  font-size: 14px;
+  white-space: nowrap;
+}
+.demo-toolbar-select,
+.demo-toolbar-reset {
+  background: var(--c3);
+  color: var(--c12);
+  border: 1px solid var(--c4);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-sm);
+  font-size: 14px;
+  min-height: 44px;
+  cursor: pointer;
+}
+.demo-toolbar-reset:hover { background: var(--c4); }
+
+@media print {
+  .demo-toolbar { display: none; }
+}

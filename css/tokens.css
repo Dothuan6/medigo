@@ -1,0 +1,47 @@
+/* Medigo Design Tokens - Section 2 Spec */
+:root {
+  /* Bảng màu chính chủ của GoCare / HGTechs */
+  --c1:  #1F1F1F;  /* chữ chính, tiêu đề */
+  --c2:  #424242;  /* chữ thân */
+  --c3:  #344557;  /* nền tối, sidebar admin */
+  --c4:  #414445;  /* chữ phụ đậm */
+  --c5:  #939393;  /* chữ mờ, placeholder */
+  --c6:  #00ADEE;  /* PRIMARY — nút chính, link, nhấn mạnh */
+  --c7:  #AAAAAA;  /* viền, đường kẻ */
+  --c8:  #84BE52;  /* trạng thái thành công */
+  --c9:  #FFA500;  /* cảnh báo, chờ xử lý */
+  --c10: #FBAE40;  /* nhấn phụ */
+  --c11: #FFBC40;  /* nhấn phụ nhạt */
+  --c12: #FFFFFF;  /* nền, chữ trên nền màu */
+
+  /* ĐỀ XUẤT — chờ duyệt (Bổ sung cho trạng thái lỗi / từ chối) */
+  --err: #D9342B;  /* lỗi, từ chối, giá niêm yết đỏ */
+
+  /* ĐỀ XUẤT — chờ duyệt: các sắc trung tính/nền nhạt đang dùng trong layout website.
+     Bảng token gốc của khách không có nhóm này. Gom về biến để không viết hex trong component. */
+  --surface:      #F8FAFC;  /* nền khối phụ, header bảng */
+  --surface-alt:  #F4F6F8;  /* nền trang khu vực admin */
+  --border:       #E5E7EB;  /* viền nhạt giữa các khối */
+  --border-strong:#E2E8F0;  /* viền đậm hơn, chân tiêu đề bảng */
+  --tint-blue:    #F0F9FF;  /* nền nhạt theo --c6 */
+  --tint-green:   #F4FBF0;  /* nền nhạt theo --c8 */
+  --tint-yellow:  #FFFDF0;  /* nền nhạt theo --c11 */
+  --tint-red:     #FFF0F0;  /* nền nhạt theo --err */
+  --rank-bronze:  #E6A15C;  /* badge hạng Đồng */
+  --rank-silver:  #A0B2C6;  /* badge hạng Bạc (hạng Vàng dùng --c10) */
+
+  /* Khoảng cách chuẩn */
+  --s1: 5px;   --s2: 6px;   --s3: 8px;   --s4: 10px;
+  --s5: 12px;  --s6: 15px;  --s7: 16px;  --s8: 20px;
+  --s9: 30px;  --s10: 40px; --s11: 50px;
+
+  /* Bo góc */
+  --r-sm: 4px;  --r-md: 5px;  --r-lg: 6px;
+  --r-xl: 30px; --r-full: 50%;
+
+  /* Shadow & Transitions */
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.10);
+  --shadow-lg: 0 8px 30px rgba(0,0,0,0.15);
+  --transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
