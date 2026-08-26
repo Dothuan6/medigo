@@ -107,6 +107,60 @@ const MedigoViews = {
     return map[status] || 'badge-locked';
   },
 
+  /**
+   * Khung xương "đang tải" cho bảng dữ liệu (Spec mục 5: mọi bảng và biểu đồ
+   * đều phải có trạng thái đang tải).
+   */
+  tableSkeleton: function(cols, rows) {
+    const c = cols || 8;
+    const r = rows || 5;
+    return `
+      <div class="data-table-wrapper" aria-busy="true" aria-live="polite">
+        <span class="sr-only">Đang tải dữ liệu...</span>
+        <table class="data-table">
+          <tbody>
+            ${Array.from({ length: r }, () => `
+              <tr>${Array.from({ length: c }, () => `<td><span class="skeleton-line"></span></td>`).join('')}</tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  },
+
+  /** Khung xương "đang tải" cho biểu đồ cột. */
+  chartSkeleton: function(bars) {
+    const n = bars || 7;
+    return `
+      <div class="bar-chart" aria-busy="true" aria-live="polite">
+        <span class="sr-only">Đang tải biểu đồ...</span>
+        ${Array.from({ length: n }, (_, i) => `
+          <div class="bar-chart-col">
+            <div class="skeleton-bar" style="height: ${30 + ((i * 37) % 55)}%"></div>
+            <span class="skeleton-line skeleton-line-sm"></span>
+          </div>`).join('')}
+      </div>`;
+  },
+
+  /**
+   * Vẽ khung xương trước, rồi vẽ nội dung thật sau độ trễ giả lập.
+   * Chỉ dùng ở lần nạp đầu của màn — thao tác lọc/phân trang vẽ ngay để không nhấp nháy.
+   */
+  withLoading: function(regionId, skeletonHTML, renderFn) {
+    const region = document.getElementById(regionId);
+    if (!region) return;
+    const delay = MEDIGO_CONFIG.demo.simulatedLatencyMs;
+    if (!delay) { renderFn(); return; }
+
+    region.innerHTML = skeletonHTML;
+    const token = (this._loadToken = (this._loadToken || 0) + 1);
+    setTimeout(() => {
+      // Bỏ qua nếu người dùng đã rời màn hoặc có lượt nạp mới hơn
+      if (token !== this._loadToken) return;
+      if (!document.getElementById(regionId)) return;
+      renderFn();
+    }, delay);
+  },
+
   /** Khối trạng thái rỗng dùng chung (Spec mục 5). */
   emptyState: function(iconName, title, desc, actionHTML) {
     return `
@@ -127,8 +181,8 @@ const MedigoViews = {
     const cartQty = MedigoStore.getCartQty();
 
     const navItem = (code, label) =>
-      `<li><a href="#${code}" class="web-nav-link ${activeTab === code ? 'active-nav' : ''}"
-         onclick="event.preventDefault(); MedigoApp.navigate('${code}')">${label}</a></li>`;
+      `<li><a href="#${code}" class="web-nav-link ${activeTab === code ? 'active-nav' : ''}" data-go="${code}"
+         onclick="event.preventDefault(); MedigoApp.navigate(this.dataset.go)">${label}</a></li>`;
 
     return `
       ${affId ? `
@@ -227,8 +281,9 @@ const MedigoViews = {
 
         <div class="product-hero-grid">
           <div>
-            <div class="product-carousel">
-              <img id="carousel-img" src="${p.images[0]}" alt="Đồng hồ GoCare HW01">
+            <div class="product-carousel" id="product-carousel" data-swipe="true"
+                 role="group" aria-roledescription="băng chuyền ảnh" aria-label="Ảnh sản phẩm">
+              <img id="carousel-img" src="${p.images[0]}" alt="Đồng hồ GoCare HW01" draggable="false">
               <div class="carousel-dots">
                 ${p.images.map((_, i) => `
                   <button class="carousel-dot ${i === 0 ? 'active' : ''}" aria-label="Xem ảnh ${i + 1}"
@@ -298,6 +353,39 @@ const MedigoViews = {
         ${this.renderFooter()}
       </div>
     `;
+
+    this.carouselIndex = 0;
+    this.bindCarouselSwipe();
+  },
+
+  /**
+   * Vuốt ngang để đổi ảnh (Spec A0). Dùng Pointer Events nên chạy cho cả
+   * cảm ứng, chuột và bút. Kèm phím mũi tên trái/phải cho người dùng bàn phím.
+   */
+  carouselIndex: 0,
+
+  bindCarouselSwipe: function() {
+    const el = document.getElementById('product-carousel');
+    if (!el) return;
+    const total = MEDIGO_CONFIG.product.images.length;
+    const THRESHOLD = 40; // px — đủ lớn để không nhầm với chạm nhẹ
+    let startX = null;
+
+    el.addEventListener('pointerdown', (e) => { startX = e.clientX; });
+    el.addEventListener('pointerup', (e) => {
+      if (startX === null) return;
+      const dx = e.clientX - startX;
+      startX = null;
+      if (Math.abs(dx) < THRESHOLD) return;
+      const next = (this.carouselIndex + (dx < 0 ? 1 : -1) + total) % total;
+      this.switchCarousel(next);
+    });
+    el.addEventListener('pointercancel', () => { startX = null; });
+
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight') this.switchCarousel((this.carouselIndex + 1) % total);
+      if (e.key === 'ArrowLeft')  this.switchCarousel((this.carouselIndex - 1 + total) % total);
+    });
   },
 
   referralLink: function() {
@@ -306,10 +394,12 @@ const MedigoViews = {
   },
 
   switchCarousel: function(index) {
+    this.carouselIndex = index;
     const img = document.getElementById('carousel-img');
     if (img) img.src = MEDIGO_CONFIG.product.images[index];
     document.querySelectorAll('.carousel-dot').forEach((dot, i) => {
       dot.classList.toggle('active', i === index);
+      dot.setAttribute('aria-current', i === index ? 'true' : 'false');
     });
   },
 
@@ -693,7 +783,8 @@ const MedigoViews = {
               <span>Nội dung CK:</span>
               <span class="copy-inline">
                 <strong>${orderRef}</strong>
-                <button class="btn btn-secondary btn-compact" onclick="MedigoViews.copyText('${orderRef}', 'Đã sao chép nội dung chuyển khoản.')">Copy</button>
+                <button class="btn btn-secondary btn-compact" data-copy="${this.esc(orderRef)}"
+                        onclick="MedigoViews.copyText(this.dataset.copy, 'Đã sao chép nội dung chuyển khoản.')">Copy</button>
               </span>
             </div>
             <div class="summary-line">
@@ -763,7 +854,8 @@ const MedigoViews = {
             <span class="badge badge-pending">Chờ kích hoạt</span>
             <div class="activation-code-label">Mã kích hoạt phần mềm Bác sĩ 24/7</div>
             <div class="activation-code-text">${this.esc(order.activationKey.code)}</div>
-            <button class="btn btn-secondary" onclick="MedigoViews.copyText('${this.esc(order.activationKey.code)}', 'Đã sao chép mã kích hoạt.')">
+            <button class="btn btn-secondary" data-copy="${this.esc(order.activationKey.code)}"
+                    onclick="MedigoViews.copyText(this.dataset.copy, 'Đã sao chép mã kích hoạt.')">
               Sao chép mã phần mềm
             </button>
             <p class="activation-code-note">
@@ -852,7 +944,8 @@ const MedigoViews = {
         desc: 'Giao dịch bị gián đoạn hoặc không thành công. Vui lòng kiểm tra lại tài khoản.',
         buttons: `
           <button class="btn btn-primary btn-full btn-lg" onclick="MedigoApp.navigate('A3')">Thử lại</button>
-          <button class="btn btn-secondary btn-full" onclick="MedigoViews.toast('Tổng đài hỗ trợ: ${config.company.hotline}')">Liên hệ hỗ trợ</button>`
+          <button class="btn btn-secondary btn-full" data-hotline="${this.esc(config.company.hotline)}"
+                  onclick="MedigoViews.toast('Tổng đài hỗ trợ: ' + this.dataset.hotline)">Liên hệ hỗ trợ</button>`
       },
       confirming: {
         variant: 'warning',
@@ -1195,7 +1288,8 @@ const MedigoViews = {
               <span class="text-sm text-muted">Mã giới thiệu (aff_id)</span>
               <div class="ref-code-row">
                 <span class="ref-code">${this.esc(seller.aff_id)}</span>
-                <button class="btn btn-secondary" onclick="MedigoViews.copyText('${this.esc(seller.aff_id)}', 'Đã sao chép mã giới thiệu.')">Sao chép mã</button>
+                <button class="btn btn-secondary" data-copy="${this.esc(seller.aff_id)}"
+                        onclick="MedigoViews.copyText(this.dataset.copy, 'Đã sao chép mã giới thiệu.')">Sao chép mã</button>
               </div>
             </div>
 
@@ -1203,8 +1297,10 @@ const MedigoViews = {
               <span class="text-sm text-muted">Link giới thiệu sản phẩm</span>
               <div class="ref-link" title="${this.esc(refLink)}">${this.esc(refLink)}</div>
               <div class="ref-actions">
-                <button class="btn btn-secondary" onclick="MedigoViews.copyText('${this.esc(refLink)}', 'Đã sao chép link giới thiệu.')">Sao chép link</button>
-                <button class="btn btn-primary" onclick="MedigoViews.shareLink('${this.esc(refLink)}')">Chia sẻ link</button>
+                <button class="btn btn-secondary" data-copy="${this.esc(refLink)}"
+                        onclick="MedigoViews.copyText(this.dataset.copy, 'Đã sao chép link giới thiệu.')">Sao chép link</button>
+                <button class="btn btn-primary" data-copy="${this.esc(refLink)}"
+                        onclick="MedigoViews.shareLink(this.dataset.copy)">Chia sẻ link</button>
               </div>
             </div>
           </div>
@@ -1231,13 +1327,11 @@ const MedigoViews = {
     const seller = MedigoStore.getSeller();
     const downlines = MedigoStore.getDownlines();
     const history = MedigoStore.getHistory();
-    const trend = MedigoStore.getTrend();
     const refLink = `gocare.vn/san-pham/${MEDIGO_CONFIG.product.code}?aff_id=${seller.aff_id}`;
 
     // Hạng và tiền hoa hồng đều suy ra từ file cấu hình, không viết cứng.
     const rank = MEDIGO_RULES.rankFor(seller.totalOrders);
     const hasDownline = downlines.some(t => t.memberCount > 0);
-    const chartMax = Math.max(1, ...trend.map(t => t.amount));
 
     container.innerHTML = `
       <div class="web-wrapper">
@@ -1258,8 +1352,10 @@ const MedigoViews = {
               <div class="ref-link" title="${this.esc(refLink)}">${this.esc(refLink)}</div>
             </div>
             <div class="referral-banner-actions">
-              <button class="btn btn-secondary" onclick="MedigoViews.copyText('${this.esc(refLink)}', 'Đã sao chép link giới thiệu.')">Copy link</button>
-              <button class="btn btn-primary" onclick="MedigoViews.shareLink('${this.esc(refLink)}')">Chia sẻ</button>
+              <button class="btn btn-secondary" data-copy="${this.esc(refLink)}"
+                      onclick="MedigoViews.copyText(this.dataset.copy, 'Đã sao chép link giới thiệu.')">Copy link</button>
+              <button class="btn btn-primary" data-copy="${this.esc(refLink)}"
+                      onclick="MedigoViews.shareLink(this.dataset.copy)">Chia sẻ</button>
             </div>
           </div>
 
@@ -1286,16 +1382,7 @@ const MedigoViews = {
             <div>
               <div class="section-card bordered">
                 <h3 class="card-title">Xu hướng hoa hồng · 7 ngày qua</h3>
-                <div class="bar-chart" role="img" aria-label="Biểu đồ cột hoa hồng 7 ngày gần nhất">
-                  ${trend.map(item => {
-                    const pct = Math.round((item.amount / chartMax) * 100);
-                    return `
-                      <div class="bar-chart-col" title="${this.esc(item.day)}: ${this.formatMoney(item.amount)}">
-                        <div class="bar-chart-bar" style="height: ${Math.max(4, pct)}%"></div>
-                        <span class="bar-chart-label">${this.esc(item.day.split(' ')[0])}</span>
-                      </div>`;
-                  }).join('')}
-                </div>
+                <div id="commission-chart-region"></div>
               </div>
 
               <div class="section-card bordered">
@@ -1355,13 +1442,37 @@ const MedigoViews = {
                     </div>`;
                 }).join('') : this.emptyState('users', 'Chưa có tuyến dưới',
                     'Chia sẻ link giới thiệu để bắt đầu.',
-                    `<button class="btn btn-primary" onclick="MedigoViews.shareLink('${this.esc(refLink)}')">Chia sẻ link</button>`)}
+                    `<button class="btn btn-primary" data-copy="${this.esc(refLink)}"
+                             onclick="MedigoViews.shareLink(this.dataset.copy)">Chia sẻ link</button>`)}
               </div>
             </div>
           </div>
         </div>
       </div>
     `;
+
+    // Biểu đồ nạp qua khung xương "đang tải" như bảng dữ liệu
+    this.withLoading('commission-chart-region', this.chartSkeleton(7), () => this.renderCommissionChart());
+  },
+
+  /** Vẽ biểu đồ cột hoa hồng 7 ngày, thang đo lấy theo giá trị lớn nhất thực tế. */
+  renderCommissionChart: function() {
+    const region = document.getElementById('commission-chart-region');
+    if (!region) return;
+    const trend = MedigoStore.getTrend();
+    const chartMax = Math.max(1, ...trend.map(t => t.amount));
+
+    region.innerHTML = `
+      <div class="bar-chart" role="img" aria-label="Biểu đồ cột hoa hồng 7 ngày gần nhất">
+        ${trend.map(item => {
+          const pct = Math.round((item.amount / chartMax) * 100);
+          return `
+            <div class="bar-chart-col" title="${this.esc(item.day)}: ${this.formatMoney(item.amount)}">
+              <div class="bar-chart-bar" style="height: ${Math.max(4, pct)}%"></div>
+              <span class="bar-chart-label">${this.esc(item.day.split(' ')[0])}</span>
+            </div>`;
+        }).join('')}
+      </div>`;
   },
 
   toggleTier: function(level) {
@@ -1641,7 +1752,8 @@ const MedigoViews = {
       keyBody = `
         <div class="activation-inline-code">${this.esc(maskedCode)}</div>
         <button class="btn btn-primary btn-full btn-lg"
-                onclick="MedigoViews.showActivationModal('${this.esc(order.orderId)}')">
+                data-order="${this.esc(order.orderId)}"
+                onclick="MedigoViews.showActivationModal(this.dataset.order)">
           Tôi đã nhận được đồng hồ — Kích hoạt ngay
         </button>
         <p class="text-sm text-muted text-center activation-note">
@@ -1683,7 +1795,8 @@ const MedigoViews = {
           </div>
           <div class="order-block-foot">
             <span class="text-sm text-muted">Mã vận đơn: <strong>${this.esc(order.shipping.trackingCode)}</strong></span>
-            <button class="btn btn-secondary" onclick="MedigoViews.toast('Mở trang theo dõi hành trình đơn ${this.esc(order.shipping.trackingCode)}.')">
+            <button class="btn btn-secondary" data-track="${this.esc(order.shipping.trackingCode)}"
+                    onclick="MedigoViews.toast('Mở trang theo dõi hành trình đơn ' + this.dataset.track + '.')">
               ${this.icon('truck', 16)} Theo dõi đơn vận chuyển
             </button>
           </div>
@@ -1780,8 +1893,8 @@ const MedigoViews = {
   renderAdminSidebar: function(active) {
     const item = (code, label, iconName) => `
       <li class="admin-nav-item">
-        <a href="#${code}" class="admin-nav-link ${active === code ? 'active' : ''}"
-           onclick="event.preventDefault(); MedigoApp.navigate('${code}')">
+        <a href="#${code}" class="admin-nav-link ${active === code ? 'active' : ''}" data-go="${code}"
+           onclick="event.preventDefault(); MedigoApp.navigate(this.dataset.go)">
           ${this.icon(iconName, 18)} <span>${label}</span>
         </a>
       </li>`;
@@ -1859,7 +1972,8 @@ const MedigoViews = {
       </div>
     `;
 
-    this.renderMemberTable();
+    // Lần nạp đầu của màn: hiện khung xương "đang tải" trước (Spec mục 5)
+    this.withLoading('member-table-region', this.tableSkeleton(8, 5), () => this.renderMemberTable());
   },
 
   filteredMembers: function() {
@@ -1932,13 +2046,15 @@ const MedigoViews = {
                   <td>${this.esc(this.maskPhone(m.phone))}</td>
                   <td><strong class="text-primary">${this.esc(m.aff_id)}</strong></td>
                   <td>${m.sponsorAffId
-                    ? `<a href="javascript:void(0)" onclick="MedigoViews.openMemberDrawer('${this.esc(m.sponsorAffId)}')">${this.esc(m.sponsorAffId)}</a>`
+                    ? `<a href="javascript:void(0)" data-aff="${this.esc(m.sponsorAffId)}"
+                          onclick="MedigoViews.openMemberDrawer(this.dataset.aff)">${this.esc(m.sponsorAffId)}</a>`
                     : '<span class="text-muted">—</span>'}</td>
                   <td><span class="rank-badge ${rank.badgeClass}">${this.esc(rank.rank)}</span></td>
                   <td>${this.esc(m.joinDate)}</td>
                   <td><span class="badge ${this.statusBadgeClass(m.status)}">${this.esc(m.status)}</span></td>
                   <td>
-                    <button class="btn btn-secondary" onclick="MedigoViews.openMemberDrawer('${this.esc(m.aff_id)}')">Chi tiết ›</button>
+                    <button class="btn btn-secondary" data-aff="${this.esc(m.aff_id)}"
+                            onclick="MedigoViews.openMemberDrawer(this.dataset.aff)">Chi tiết ›</button>
                   </td>
                 </tr>`;
             }).join('')}
@@ -2029,23 +2145,43 @@ const MedigoViews = {
     `;
 
     document.getElementById('drawer-member-footer').innerHTML = locked
-      ? `<button class="btn btn-success btn-full btn-lg" onclick="MedigoViews.setMemberLock('${this.esc(member.aff_id)}', false)">Mở khóa tài khoản</button>`
-      : `<button class="btn btn-danger btn-full btn-lg" onclick="MedigoViews.setMemberLock('${this.esc(member.aff_id)}', true)">Khóa tài khoản</button>`;
+      ? `<button class="btn btn-success btn-full btn-lg" data-aff="${this.esc(member.aff_id)}"
+                 onclick="MedigoViews.setMemberLock(this.dataset.aff, false, this)">Mở khóa tài khoản</button>`
+      : `<button class="btn btn-danger btn-full btn-lg" data-aff="${this.esc(member.aff_id)}"
+                 onclick="MedigoViews.setMemberLock(this.dataset.aff, true, this)">Khóa tài khoản</button>`;
 
     this.openDrawer('admin-member-drawer');
   },
 
-  setMemberLock: function(affId, lock) {
+  setMemberLock: function(affId, lock, btn) {
     const member = MedigoStore.getMembers().find(m => m.aff_id === affId);
     if (!member) return;
 
     const action = lock ? 'KHÓA' : 'MỞ KHÓA';
     if (!window.confirm(`Xác nhận ${action} tài khoản?\n\nThành viên: ${member.fullName} (aff_id ${member.aff_id})`)) return;
 
+    if (!this.lockButton(btn)) return; // chống bấm hai lần
+
     MedigoStore.setMemberStatus(affId, lock ? 'Đã khóa' : 'Đang hoạt động');
     this.closeDrawer('admin-member-drawer');
     this.toast(lock ? 'Đã khóa tài khoản thành viên.' : 'Đã mở khóa tài khoản thành viên.');
     this.renderMemberTable();
+  },
+
+  /**
+   * Khóa nút trong lúc xử lý để tránh bấm hai lần (Spec mục 5).
+   * Trả về false nếu nút đã đang xử lý — khi đó lời gọi bị bỏ qua.
+   */
+  lockButton: function(btn) {
+    if (!btn) return true;
+    if (btn.disabled || btn.classList.contains('loading')) return false;
+    btn.disabled = true;
+    btn.classList.add('loading');
+    // Nếu màn không được vẽ lại (ví dụ thao tác thất bại), tự mở khóa sau 1.2s
+    setTimeout(() => {
+      if (btn.isConnected) { btn.disabled = false; btn.classList.remove('loading'); }
+    }, 1200);
+    return true;
   },
 
   openDrawer: function(id) {
@@ -2111,7 +2247,7 @@ const MedigoViews = {
       </div>
     `;
 
-    this.renderWithdrawTable();
+    this.withLoading('withdraw-table-region', this.tableSkeleton(10, 4), () => this.renderWithdrawTable());
   },
 
   filteredWithdrawals: function() {
@@ -2195,7 +2331,8 @@ const MedigoViews = {
                   <td>${this.esc(r.bankName)}</td>
                   <td>${this.esc(r.branch)}</td>
                   <td><span class="badge ${this.statusBadgeClass(r.status)}">${this.esc(r.status)}</span></td>
-                  <td><button class="btn btn-secondary" onclick="MedigoViews.openWithdrawDrawer('${this.esc(r.id)}')">Chi tiết ›</button></td>
+                  <td><button class="btn btn-secondary" data-req="${this.esc(r.id)}"
+                              onclick="MedigoViews.openWithdrawDrawer(this.dataset.req)">Chi tiết ›</button></td>
                 </tr>`;
             }).join('')}
           </tbody>
@@ -2274,11 +2411,14 @@ const MedigoViews = {
 
       <div class="drawer-actions">
         <button class="btn btn-primary btn-lg" ${pending ? '' : 'disabled'}
-                onclick="MedigoViews.handleWithdrawAction('${this.esc(r.id)}', 'Đã duyệt')">Duyệt</button>
+                data-req="${this.esc(r.id)}" data-next="Đã duyệt"
+                onclick="MedigoViews.handleWithdrawAction(this.dataset.req, this.dataset.next, this)">Duyệt</button>
         <button class="btn btn-danger btn-lg" ${pending ? '' : 'disabled'}
-                onclick="MedigoViews.handleWithdrawAction('${this.esc(r.id)}', 'Từ chối')">Từ chối</button>
+                data-req="${this.esc(r.id)}" data-next="Từ chối"
+                onclick="MedigoViews.handleWithdrawAction(this.dataset.req, this.dataset.next, this)">Từ chối</button>
         <button class="btn btn-success btn-lg" ${approved ? '' : 'disabled'}
-                onclick="MedigoViews.handleWithdrawAction('${this.esc(r.id)}', 'Đã chi trả')">Đánh dấu đã chi trả</button>
+                data-req="${this.esc(r.id)}" data-next="Đã chi trả"
+                onclick="MedigoViews.handleWithdrawAction(this.dataset.req, this.dataset.next, this)">Đánh dấu đã chi trả</button>
       </div>
       ${!pending && !approved ? `<p class="text-sm text-muted">Yêu cầu đã ở trạng thái cuối, không còn thao tác nào.</p>` : ''}
       ${pending ? `<p class="text-sm text-muted">Chỉ yêu cầu ở trạng thái "Đã duyệt" mới được đánh dấu đã chi trả.</p>` : ''}
@@ -2288,7 +2428,7 @@ const MedigoViews = {
   },
 
   /** Mọi thao tác tài chính đều mở hộp thoại xác nhận nêu rõ số tiền và người nhận (Spec B3). */
-  handleWithdrawAction: function(reqId, nextStatus) {
+  handleWithdrawAction: function(reqId, nextStatus, btn) {
     const r = MedigoStore.getWithdrawals().find(item => item.id === reqId);
     if (!r) return;
 
@@ -2318,6 +2458,8 @@ const MedigoViews = {
     if (nextStatus === 'Từ chối') lines.push('', 'Số tiền sẽ được hoàn lại vào số dư khả dụng của seller.');
 
     if (!window.confirm(lines.join('\n'))) return;
+
+    if (!this.lockButton(btn)) return; // chống bấm hai lần trên thao tác tài chính
 
     const result = MedigoStore.updateWithdrawalStatus(reqId, nextStatus, reason);
     if (!result.ok) { this.toast(result.message); return; }

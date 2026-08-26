@@ -13,7 +13,7 @@ html, body {
   font-size: 16px; /* Cỡ chữ tối thiểu 16px theo A11y spec */
   line-height: 1.5;
   color: var(--c2);
-  background-color: #FFFFFF;
+  background-color: var(--c12);
   -webkit-text-size-adjust: 100%;
   -webkit-font-smoothing: antialiased;
 }
@@ -70,11 +70,14 @@ a:hover {
   background-color: var(--c6);
   color: var(--c12);
 }
+/* Hover/active không dùng mã màu mới — làm tối chính --c6 để giữ đúng bảng token gốc. */
 .btn-primary:hover {
-  background-color: #0096ce;
+  background-color: var(--c6);
+  filter: brightness(0.93);
 }
 .btn-primary:active {
-  background-color: #0080b0;
+  background-color: var(--c6);
+  filter: brightness(0.86);
 }
 
 .btn-secondary {
@@ -83,7 +86,7 @@ a:hover {
   border-color: var(--c7);
 }
 .btn-secondary:hover {
-  background-color: #F0F0F0;
+  background-color: var(--surface);
   border-color: var(--c4);
 }
 
@@ -93,7 +96,7 @@ a:hover {
   border-color: var(--err);
 }
 .btn-danger:hover {
-  background-color: #FDF2F2;
+  background-color: var(--tint-red);
 }
 
 .btn-success {
@@ -105,9 +108,38 @@ a:hover {
   width: 100%;
 }
 
-.btn:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
-  outline: 3px solid rgba(0, 173, 238, 0.4);
-  outline-offset: 1px;
+/* Viền focus phải phủ MỌI phần tử tương tác, không chỉ .btn và ô nhập.
+   Trước đây thẻ <a> và các <button> không mang class .btn (giỏ hàng, +/-, accordion,
+   nút đóng, menu admin) hoàn toàn không có viền focus — bàn phím không biết đang ở đâu. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid rgba(0, 173, 238, 0.55);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* Ô nhập nằm trong khung bọc (ô tìm kiếm admin) thì đẩy viền focus ra khung bọc */
+.admin-search-box:focus-within {
+  outline: 3px solid rgba(0, 173, 238, 0.55);
+  outline-offset: 2px;
+  border-color: var(--c6);
+}
+.admin-search-input:focus-visible { outline: none; }
+
+/* Số tiền không bao giờ được xuống dòng giữa số (Spec mục 5).
+   CHỈ áp cho các lớp luôn luôn chứa tiền — không áp cho <strong> chung chung,
+   vì các dòng tóm tắt còn chứa địa chỉ/tên dài và sẽ làm vỡ khung ở màn hẹp. */
+.text-price,
+.stat-value,
+.product-price-tag,
+.balance-value,
+.history-amount {
+  white-space: nowrap;
 }
 
 .btn:disabled, .btn.disabled {

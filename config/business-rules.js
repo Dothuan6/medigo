@@ -93,6 +93,13 @@ const MEDIGO_CONFIG = {
   // Phân trang bảng admin
   admin: {
     pageSize: 10
+  },
+
+  // Cấu hình riêng cho bản demo
+  demo: {
+    // Độ trễ giả lập khi nạp bảng/biểu đồ, để khách nhìn thấy trạng thái "đang tải".
+    // Đặt về 0 nếu muốn hiển thị tức thì.
+    simulatedLatencyMs: 500
   }
 };
 
