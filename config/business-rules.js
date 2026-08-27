@@ -25,19 +25,24 @@ const MEDIGO_CONFIG = {
      * Mỗi ảnh 1890x1063 (16:9) nên khung ảnh dùng object-fit: contain —
      * đây là ảnh infographic có chữ, cắt cover sẽ mất nội dung.
      * Tên file gốc có dấu cách và ngoặc nên phải mã hóa URL (%20).
+     *
+     * src   = ảnh gốc, dùng cho khung ảnh lớn.
+     * thumb = bản 320px trong mock/assets/thumbs, dùng cho dải chọn ảnh.
+     *         Không dùng ảnh gốc cho thumbnail: 6 tấm gốc là ~5MB chỉ để vẽ 6 ô
+     *         rộng 128px. Sinh lại bằng: python tools/make_thumbs.py
      */
     gallery: [
-      { src: "./mock/assets/nc%20(1).png", title: "Theo dõi, quản lý sức khỏe cá nhân",
+      { src: "./mock/assets/nc%20(1).png", thumb: "./mock/assets/thumbs/nc%20(1).png", title: "Theo dõi, quản lý sức khỏe cá nhân",
         alt: "Theo dõi, quản lý sức khỏe cá nhân trên nền tảng GOCARE" },
-      { src: "./mock/assets/nc%20(2).png", title: "Thu nhận dữ liệu vào APP",
+      { src: "./mock/assets/nc%20(2).png", thumb: "./mock/assets/thumbs/nc%20(2).png", title: "Thu nhận dữ liệu vào APP",
         alt: "Thu nhận dữ liệu từ thiết bị đo, nhập thủ công và chụp OCR vào ứng dụng" },
-      { src: "./mock/assets/nc%20(3).png", title: "Lưu trữ dữ liệu sức khỏe",
+      { src: "./mock/assets/nc%20(3).png", thumb: "./mock/assets/thumbs/nc%20(3).png", title: "Lưu trữ dữ liệu sức khỏe",
         alt: "Lưu trữ dữ liệu sức khỏe 10 năm, dung lượng tối đa 50MB" },
-      { src: "./mock/assets/nc%20(4).png", title: "Chia sẻ thông tin sức khỏe online",
+      { src: "./mock/assets/nc%20(4).png", thumb: "./mock/assets/thumbs/nc%20(4).png", title: "Chia sẻ thông tin sức khỏe online",
         alt: "Chia sẻ dữ liệu sức khỏe với Trung tâm TT247 GOCARE và người thân" },
-      { src: "./mock/assets/nc%20(5).png", title: "Cảnh báo và hỗ trợ khẩn cấp (SOS)",
+      { src: "./mock/assets/nc%20(5).png", thumb: "./mock/assets/thumbs/nc%20(5).png", title: "Cảnh báo và hỗ trợ khẩn cấp (SOS)",
         alt: "Cảnh báo chỉ số bất thường, Callbot gọi người thân và nút SOS trên ứng dụng" },
-      { src: "./mock/assets/nc%20(6).png", title: "Theo dõi và chăm sóc sức khỏe từ xa",
+      { src: "./mock/assets/nc%20(6).png", thumb: "./mock/assets/thumbs/nc%20(6).png", title: "Theo dõi và chăm sóc sức khỏe từ xa",
         alt: "Trung tâm TT247 GOCARE theo dõi và hỗ trợ sức khỏe từ xa" }
     ]
   },
@@ -130,9 +135,49 @@ const MEDIGO_CONFIG = {
     "Chính sách kiểm hàng"
   ],
 
+  /**
+   * Danh sách ngân hàng dùng chung cho MỌI ô chọn ngân hàng (A2, A6, modal đổi
+   * tài khoản). Trước đây mỗi nơi khai một mảng riêng, A6 thiếu ACB/VPBank nên
+   * chọn ACB ở A2 xong sang A6 là mất lựa chọn.
+   */
+  banks: [
+    'Vietcombank', 'BIDV', 'Techcombank', 'MBBank',
+    'VietinBank', 'ACB', 'VPBank', 'Agribank', 'Sacombank', 'TPBank'
+  ],
+
   // Phân trang bảng admin
   admin: {
     pageSize: 10
+  },
+
+  /**
+   * Nơi prototype được deploy.
+   *
+   * Dùng cho những chỗ BẮT BUỘC phải là URL tuyệt đối — cụ thể là thẻ Open Graph
+   * (og:url, og:image). Zalo và Facebook không phân giải được đường dẫn tương đối,
+   * để tương đối thì link chia sẻ không hiện ảnh, mất chuyển đổi ngay bước đầu
+   * (Spec mục 8).
+   *
+   * Link giới thiệu của seller KHÔNG dùng hằng số này — nó dựng từ nơi trang đang
+   * chạy (xem MedigoViews.referralUrl) nên chạy đúng ở cả localhost lẫn bản deploy.
+   *
+   * Khi lên tên miền chính thức: đổi baseUrl ở đây và sửa 3 thẻ og trong index.html.
+   */
+  site: {
+    baseUrl: 'https://medigofedev.netlify.app'
+  },
+
+  /**
+   * Bật/tắt từng phần của prototype.
+   *
+   * landingPage — Trang chủ sản phẩm (A0).
+   *   TẠM ẨN, để sang phase 2. Luồng bán hiện tại: khách bấm link giới thiệu của
+   *   seller là vào thẳng form nhập thông tin mua hàng (A2), không qua trang chủ.
+   *   Bật lại ở phase 2: đổi thành true — màn A0, mục nav "Trang chủ Sản phẩm",
+   *   logo và các liên kết "Xem sản phẩm" tự hiện lại, không phải sửa gì thêm.
+   */
+  features: {
+    landingPage: false
   },
 
   // Cấu hình riêng cho bản demo
@@ -202,6 +247,14 @@ const MEDIGO_RULES = {
       return { ok: false, message: `Số tiền rút vượt quá số dư khả dụng (${MEDIGO_RULES.formatMoney(availableBalance)}).` };
     }
     return { ok: true, message: '' };
+  },
+
+  /**
+   * Màn khách hàng tiếp đất khi mở link giới thiệu của seller.
+   * Phase 1: vào thẳng form mua hàng (A2). Phase 2 (bật landingPage): trang chủ A0.
+   */
+  entryScreen: function() {
+    return MEDIGO_CONFIG.features.landingPage ? 'A0' : 'A2';
   },
 
   /** Cổng thanh toán theo id. */

@@ -40,7 +40,6 @@ const MedigoViews = {
   icons: {
     info:     '<path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>',
     warning:  '<path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>',
-    cart:     '<path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>',
     share:    '<path d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"/>',
     check:    '<path d="M5 13l4 4L19 7"/>',
     box:      '<path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>',
@@ -179,7 +178,7 @@ const MedigoViews = {
   // ====================================================
   renderWebHeader: function(activeTab = '') {
     const affId = MedigoStore.getAffId();
-    const cartQty = MedigoStore.getCartQty();
+    const home = MEDIGO_RULES.entryScreen();
 
     const navItem = (code, label) =>
       `<li><a href="#${code}" class="web-nav-link ${activeTab === code ? 'active-nav' : ''}" data-go="${code}"
@@ -193,26 +192,120 @@ const MedigoViews = {
       </div>` : ''}
 
       <header class="app-header">
-        <a href="#A0" class="logo-brand" onclick="event.preventDefault(); MedigoApp.navigate('A0')">
+        <a href="#${home}" class="logo-brand" onclick="event.preventDefault(); MedigoApp.navigate(this.dataset.go)" data-go="${home}">
           ${this.logoMark(34)}
           <span>MEDIGO</span>
         </a>
 
         <ul class="web-nav-links">
-          ${navItem('A0', 'Trang chủ Sản phẩm')}
-          ${navItem('A13', 'Đơn hàng &amp; Mã của tôi')}
-          ${navItem('A10', 'Kênh Seller (Affiliate)')}
-          ${navItem('B2', 'Admin Vận hành')}
+          ${MEDIGO_CONFIG.features.landingPage ? navItem('A0', 'Trang chủ Sản phẩm') : ''}
         </ul>
 
         <div class="app-header-actions">
-          <button class="cart-icon-btn" onclick="MedigoApp.navigate('A1')" aria-label="Giỏ hàng, ${cartQty} sản phẩm">
-            ${this.icon('cart', 22)}
-            ${cartQty > 0 ? `<span class="cart-badge-count">${cartQty}</span>` : ''}
-          </button>
+          ${this.renderAccountMenu(activeTab)}
         </div>
       </header>
     `;
+  },
+
+  /**
+   * Nút thông tin tài khoản — gom Đơn hàng, Kênh Seller, Rút tiền... vào một chỗ
+   * thay vì trải hết ra thanh điều hướng.
+   */
+  renderAccountMenu: function(activeTab = '') {
+    const seller = MedigoStore.getSeller();
+    const rank = MEDIGO_RULES.rankFor(seller.totalOrders);
+    const initials = seller.fullName.trim().split(/\s+/).slice(-1)[0].charAt(0).toUpperCase();
+
+    const menuItem = (code, label, iconName) => `
+      <li role="none">
+        <a role="menuitem" href="#${code}" class="account-menu-item ${activeTab === code ? 'active' : ''}"
+           data-go="${code}" onclick="event.preventDefault(); MedigoViews.goFromAccountMenu(this.dataset.go)">
+          ${this.icon(iconName, 18)} <span>${label}</span>
+        </a>
+      </li>`;
+
+    return `
+      <div class="account-menu" id="account-menu">
+        <button class="account-trigger" id="account-trigger" aria-haspopup="true" aria-expanded="false"
+                aria-controls="account-dropdown" onclick="MedigoViews.toggleAccountMenu()">
+          <span class="account-avatar" aria-hidden="true">${this.esc(initials)}</span>
+          <span class="account-trigger-text">
+            <span class="account-trigger-name">${this.esc(seller.shortName || seller.fullName)}</span>
+            <span class="account-trigger-sub">Tài khoản</span>
+          </span>
+          ${this.icon('chevron', 16, 'flex-shrink:0')}
+        </button>
+
+        <div class="account-dropdown" id="account-dropdown" role="menu" aria-labelledby="account-trigger" hidden>
+          <div class="account-head">
+            <span class="account-avatar account-avatar-lg" aria-hidden="true">${this.esc(initials)}</span>
+            <div class="account-head-body">
+              <div class="account-head-name">${this.esc(seller.fullName)}</div>
+              <div class="text-sm text-muted">${this.esc(this.maskPhone(seller.phone))}</div>
+              <div class="account-head-meta">
+                <span class="rank-badge ${rank.badgeClass}">${this.esc(rank.rank)}</span>
+                <span class="text-sm text-muted">aff_id: <strong>${this.esc(seller.aff_id)}</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <ul class="account-menu-list" role="none">
+            <li class="account-menu-group" role="none">Mua hàng của tôi</li>
+            ${menuItem('A13', 'Đơn hàng &amp; Mã kích hoạt', 'box')}
+
+            <li class="account-menu-group" role="none">Kênh Seller</li>
+            ${menuItem('A10', 'Dashboard Seller', 'users')}
+            ${menuItem('A12', 'Yêu cầu rút tiền', 'cash')}
+            ${menuItem('A6', 'Đăng ký làm Seller', 'gift')}
+
+            <li class="account-menu-sep" role="none"></li>
+            ${menuItem('A11', 'Đăng nhập Seller', 'key')}
+            ${menuItem('B2', 'Khu vực Admin Vận hành', 'home')}
+          </ul>
+        </div>
+      </div>
+    `;
+  },
+
+  toggleAccountMenu: function(forceClose) {
+    const trigger = document.getElementById('account-trigger');
+    const dropdown = document.getElementById('account-dropdown');
+    if (!trigger || !dropdown) return;
+
+    const open = forceClose ? false : dropdown.hidden;
+    dropdown.hidden = !open;
+    trigger.setAttribute('aria-expanded', String(open));
+
+    if (open) {
+      this._accountOutside = (e) => {
+        // Header có thể đã render lại — phải kiểm tra null, nếu không handler sẽ ném lỗi
+        const root = document.getElementById('account-menu');
+        if (!root || !root.contains(e.target)) this.toggleAccountMenu(true);
+      };
+      this._accountEsc = (e) => {
+        if (e.key === 'Escape') {
+          this.toggleAccountMenu(true);
+          const t = document.getElementById('account-trigger');
+          if (t) { try { t.focus(); } catch (err) {} }
+        }
+      };
+      // hoãn 1 nhịp để không bắt chính cú bấm đang mở menu
+      setTimeout(() => {
+        if (this._accountOutside) document.addEventListener('click', this._accountOutside);
+      }, 0);
+      document.addEventListener('keydown', this._accountEsc);
+      const first = dropdown.querySelector('.account-menu-item');
+      if (first) { try { first.focus(); } catch (err) {} }
+    } else {
+      if (this._accountOutside) { document.removeEventListener('click', this._accountOutside); this._accountOutside = null; }
+      if (this._accountEsc) { document.removeEventListener('keydown', this._accountEsc); this._accountEsc = null; }
+    }
+  },
+
+  goFromAccountMenu: function(code) {
+    this.toggleAccountMenu(true);
+    MedigoApp.navigate(code);
   },
 
   renderFooter: function() {
@@ -299,7 +392,8 @@ const MedigoViews = {
                         aria-selected="${i === 0}" aria-controls="gallery-main-img"
                         title="${this.esc(img.title)}"
                         onclick="MedigoViews.switchGallery(${i})">
-                  <img src="${img.src}" alt="" loading="lazy" decoding="async" draggable="false">
+                  <img src="${img.thumb || img.src}" alt="" width="320" height="180"
+                       loading="lazy" decoding="async" draggable="false">
                   <span class="sr-only">${this.esc(img.title)}</span>
                 </button>`).join('')}
             </div>
@@ -330,11 +424,10 @@ const MedigoViews = {
             </div>
 
             <div class="product-cta-row">
-              <button class="btn btn-secondary btn-lg" onclick="MedigoViews.addToCart()">Thêm vào giỏ hàng</button>
-              <button class="btn btn-primary btn-lg" onclick="MedigoViews.buyNow()">MUA NGAY</button>
+              <button class="btn btn-primary btn-full btn-lg" onclick="MedigoViews.buyNow()">MUA NGAY</button>
             </div>
 
-            <button class="btn btn-secondary btn-full" onclick="MedigoViews.copyText(MedigoViews.referralLink(), 'Đã sao chép link chia sẻ sản phẩm.')">
+            <button class="btn btn-secondary btn-full" onclick="MedigoViews.copyText(MedigoViews.referralUrl(), 'Đã sao chép link chia sẻ sản phẩm.')">
               ${this.icon('share', 18)} Chia sẻ link giới thiệu sản phẩm
             </button>
           </div>
@@ -399,9 +492,32 @@ const MedigoViews = {
     });
   },
 
-  referralLink: function() {
-    const affId = MedigoStore.getAffId() || MedigoStore.getSeller().aff_id;
-    return `gocare.vn/san-pham/${MEDIGO_CONFIG.product.code}?aff_id=${affId}`;
+  /**
+   * Link giới thiệu của seller — luôn là URL CÔNG KHAI của bản deploy.
+   *
+   * Cố tình KHÔNG dựng từ window.location: seller mở prototype ở localhost thì
+   * link sẽ thành http://localhost:5173/... — gửi cho khách không ai mở được.
+   * Link giới thiệu là thứ seller gửi ra ngoài nên phải luôn trỏ về domain công khai.
+   *
+   * Domain lấy từ MEDIGO_CONFIG.site.baseUrl — đổi một chỗ đó là mọi link đổi theo.
+   * Chỉ khi baseUrl bỏ trống mới lùi về URL đang chạy, để bản chạy thuần local
+   * vẫn có link bấm được.
+   */
+  referralUrl: function(affId) {
+    const id = affId || MedigoStore.getAffId() || MedigoStore.getSeller().aff_id;
+    const configured = (MEDIGO_CONFIG.site.baseUrl || '').trim();
+    // Dùng URL API thay vì nối chuỗi: nối tay dễ sinh URL hỏng kiểu
+    // ".../index.html/?aff_id=" (thừa dấu gạch chéo, mở ra là 404).
+    const url = new URL(configured || (window.location.origin + window.location.pathname));
+    url.search = '';
+    url.hash = '';
+    url.searchParams.set('aff_id', id);
+    return url.toString();
+  },
+
+  /** Dạng rút gọn để hiển thị: bỏ phần giao thức cho đỡ dài. */
+  referralLabel: function(affId) {
+    return this.referralUrl(affId).replace(/^https?:\/\//, '');
   },
 
   /** Đổi ảnh lớn theo thumbnail được chọn. */
@@ -417,11 +533,21 @@ const MedigoViews = {
       img.alt = gallery[i].alt;
     }
 
+    const strip = document.querySelector('.gallery-thumbs');
     document.querySelectorAll('.gallery-thumb').forEach((thumb, idx) => {
       const on = idx === i;
       thumb.classList.toggle('active', on);
       thumb.setAttribute('aria-selected', String(on));
-      if (on) thumb.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+
+      // Kéo thumbnail đang chọn vào tầm nhìn bằng scrollLeft thay vì scrollIntoView.
+      // scrollIntoView ép trình duyệt cập nhật layout/compositing của cả trang,
+      // gây treo khi khung chứa đang ẩn.
+      if (on && strip) {
+        const left = thumb.offsetLeft;
+        const right = left + thumb.offsetWidth;
+        if (left < strip.scrollLeft) strip.scrollLeft = left;
+        else if (right > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = right - strip.clientWidth;
+      }
     });
   },
 
@@ -438,15 +564,10 @@ const MedigoViews = {
     return val;
   },
 
-  addToCart: function() {
-    const input = document.getElementById('product-qty');
-    const qty = input ? (parseInt(input.value, 10) || 1) : 1;
-    MedigoStore.setCartQty(qty);
-    MedigoApp.navigate('A1');
-  },
-
+  /** Mua thẳng từ trang sản phẩm: ghi số lượng rồi sang màn nhận hàng. */
   buyNow: function() {
-    this.addToCart();
+    const input = document.getElementById('product-qty');
+    MedigoStore.setOrderQty(input ? input.value : 1);
     MedigoApp.navigate('A2');
   },
 
@@ -458,6 +579,20 @@ const MedigoViews = {
     } else {
       done();
     }
+  },
+
+  /**
+   * Chia sẻ link giới thiệu qua hộp chia sẻ của hệ điều hành.
+   * Máy/trình duyệt không hỗ trợ thì lùi về sao chép vào bộ nhớ tạm.
+   */
+  shareLink: function(url) {
+    const link = /^https?:\/\//.test(url) ? url : 'https://' + url;
+    if (navigator.share) {
+      navigator.share({ title: 'Medigo GoCare', url: link })
+        .catch(() => {}); // người dùng bấm hủy — không phải lỗi
+      return;
+    }
+    this.copyText(link, 'Trình duyệt chưa hỗ trợ chia sẻ. Đã sao chép link vào bộ nhớ tạm.');
   },
 
   /** Thông báo ngắn góc màn hình. */
@@ -477,99 +612,13 @@ const MedigoViews = {
   },
 
   // ====================================================
-  // A1: Giỏ hàng
-  // ====================================================
-  renderA1: function(container, forceEmpty = false) {
-    const p = MEDIGO_CONFIG.product;
-    const qty = forceEmpty ? 0 : MedigoStore.getCartQty();
-
-    if (qty <= 0) {
-      container.innerHTML = `
-        <div class="web-wrapper">
-          ${this.renderWebHeader()}
-          <div class="page-narrow">
-            ${this.emptyState('cart', 'Giỏ hàng của bạn đang trống',
-              'Hãy tham khảo gói sản phẩm sức khỏe tiêu chuẩn của GoCare.',
-              `<button class="btn btn-primary btn-lg" onclick="MedigoApp.navigate('A0')">Xem sản phẩm ngay</button>`)}
-          </div>
-          ${this.renderFooter()}
-        </div>
-      `;
-      return;
-    }
-
-    const subtotal = p.price * qty;
-
-    container.innerHTML = `
-      <div class="web-wrapper">
-        ${this.renderWebHeader()}
-
-        <div class="page-narrow">
-          <h2 class="page-title">Giỏ hàng của bạn</h2>
-
-          <div class="section-card bordered cart-row">
-            <img src="${p.gallery[0].src}" alt="${this.esc(p.shortName)}" class="cart-thumb">
-            <div class="cart-row-main">
-              <div class="cart-row-name">${this.esc(p.shortName)}</div>
-              <div class="text-price cart-row-price">${this.formatMoney(p.price)}</div>
-              <div class="quantity-control">
-                <button class="qty-btn" onclick="MedigoViews.updateCartQty(-1)" aria-label="Giảm số lượng">−</button>
-                <input type="text" id="product-qty" class="qty-input" value="${qty}" readonly aria-label="Số lượng">
-                <button class="qty-btn" onclick="MedigoViews.updateCartQty(1)" aria-label="Tăng số lượng">+</button>
-              </div>
-            </div>
-            <button class="btn btn-danger cart-row-remove" onclick="MedigoViews.removeFromCart()">Xóa khỏi giỏ</button>
-          </div>
-
-          <div class="section-card bordered">
-            <div class="summary-line">
-              <span>Tạm tính</span>
-              <span class="text-bold">${this.formatMoney(subtotal)}</span>
-            </div>
-            <div class="summary-line">
-              <span>Phí vận chuyển</span>
-              <span class="text-muted">Sẽ tính ở bước thanh toán</span>
-            </div>
-            <hr class="divider">
-            <div class="summary-total">
-              <span>Thành tiền</span>
-              <span class="text-price">${this.formatMoney(subtotal)}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="sticky-bottom-bar">
-          <div class="sticky-bottom-inner">
-            <div class="sticky-bottom-total">
-              <span class="text-sm text-muted">Thành tiền</span>
-              <strong class="text-price">${this.formatMoney(subtotal)}</strong>
-            </div>
-            <button class="btn btn-primary btn-lg sticky-bottom-cta" onclick="MedigoApp.navigate('A2')">Tiến hành thanh toán</button>
-          </div>
-        </div>
-      </div>
-    `;
-  },
-
-  updateCartQty: function(delta) {
-    const qty = this.changeQty(delta);
-    MedigoStore.setCartQty(qty);
-    MedigoApp.render('A1');
-  },
-
-  removeFromCart: function() {
-    MedigoStore.clearCart();
-    MedigoApp.render('A1');
-  },
-
-  // ====================================================
   // A2: Thông tin nhận hàng
   // ====================================================
   renderA2: function(container) {
     const p = MEDIGO_CONFIG.product;
     const seller = MedigoStore.getSeller();
     const affId = MedigoStore.getAffId();
-    const qty = Math.max(1, MedigoStore.getCartQty());
+    const qty = MedigoStore.getOrderQty();
     const total = p.price * qty;
     const selectedPay = MedigoStore.getPaymentMethod();
 
@@ -589,7 +638,7 @@ const MedigoViews = {
 
               <div class="form-grid-2">
                 <div class="form-group">
-                  <label for="ck-name">Họ và tên <span class="required">*</span></label>
+                  <label for="ck-name">Họ tên <span class="required">*</span></label>
                   <input type="text" id="ck-name" class="form-control" value="${this.esc(seller.fullName)}" required>
                 </div>
                 <div class="form-group">
@@ -605,12 +654,20 @@ const MedigoViews = {
                          oninput="MedigoViews.validateEmailPair()">
                   <p class="error-message" id="err-email-1" hidden></p>
                 </div>
-                <div class="form-group" id="grp-email-2">
-                  <label for="email-2">Nhập lại Email xác nhận <span class="required">*</span></label>
-                  <input type="email" id="email-2" class="form-control" value="${this.esc(seller.email)}" required
-                         onpaste="return false" oninput="MedigoViews.validateEmailPair()">
-                  <p class="error-message" id="err-email-2" hidden></p>
+                <div class="form-group">
+                  <label for="ck-cccd">Số CCCD <span class="required">*</span></label>
+                  <input type="text" id="ck-cccd" class="form-control" inputmode="numeric"
+                         value="${this.esc(seller.cccd)}" required>
                 </div>
+              </div>
+
+              <!-- Nhập lại email: email là kênh giao mã kích hoạt, gõ sai là mất hàng.
+                   Spec mục A2 đặt đây là ràng buộc bắt buộc. -->
+              <div class="form-group" id="grp-email-2">
+                <label for="email-2">Nhập lại Email xác nhận <span class="required">*</span></label>
+                <input type="email" id="email-2" class="form-control" value="${this.esc(seller.email)}" required
+                       onpaste="return false" oninput="MedigoViews.validateEmailPair()">
+                <p class="error-message" id="err-email-2" hidden></p>
               </div>
 
               <div class="callout callout-warning">
@@ -620,36 +677,84 @@ const MedigoViews = {
               </div>
 
               <div class="form-group">
-                <label for="ck-address">Địa chỉ giao hàng <span class="required">*</span></label>
+                <label for="ck-address">Địa chỉ <span class="required">*</span></label>
                 <input type="text" id="ck-address" class="form-control" value="${this.esc(seller.address)}" required>
               </div>
 
-              <div class="form-grid-3">
+              <!-- Địa chỉ hai cấp: Tỉnh/Thành phố → Phường/Xã (đã bỏ cấp Quận/Huyện) -->
+              <div class="form-grid-2">
                 <div class="form-group">
                   <label for="ck-city">Tỉnh/Thành phố <span class="required">*</span></label>
                   <select id="ck-city" class="form-control" onchange="MedigoViews.onCityChange()">
-                    <option>Hà Nội</option>
-                    <option>TP. Hồ Chí Minh</option>
+                    ${Object.keys(this.addressTree).map(c =>
+                      `<option ${c === seller.city ? 'selected' : ''}>${this.esc(c)}</option>`).join('')}
                   </select>
-                </div>
-                <div class="form-group">
-                  <label for="ck-district">Quận/Huyện <span class="required">*</span></label>
-                  <select id="ck-district" class="form-control" onchange="MedigoViews.onDistrictChange()"></select>
                 </div>
                 <div class="form-group">
                   <label for="ck-ward">Phường/Xã <span class="required">*</span></label>
                   <select id="ck-ward" class="form-control"></select>
                 </div>
               </div>
-            </div>
 
-            <div class="section-card bordered">
-              <h3 class="card-title">Mã giới thiệu</h3>
-              <div class="form-group">
-                <label for="ck-aff">Mã giới thiệu (aff_id)</label>
-                <input type="text" id="ck-aff" class="form-control" value="${this.esc(affId)}">
-                <span class="text-sm text-muted">Để trống nếu bạn không được ai giới thiệu.</span>
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label for="ck-dob">Ngày sinh</label>
+                  <input type="text" id="ck-dob" class="form-control" placeholder="dd/mm/yyyy"
+                         value="${this.esc(seller.dob)}">
+                </div>
+                <div class="form-group">
+                  <label for="ck-gender">Giới tính</label>
+                  <select id="ck-gender" class="form-control">
+                    ${['Nam', 'Nữ', 'Khác'].map(g =>
+                      `<option ${g === seller.gender ? 'selected' : ''}>${g}</option>`).join('')}
+                  </select>
+                </div>
               </div>
+
+              <hr class="divider">
+
+              <h3 class="card-title">Thông tin nhận hoa hồng</h3>
+
+              <div class="form-grid-2">
+                <div class="form-group">
+                  <label for="ck-bank">Ngân hàng <span class="required">*</span></label>
+                  <select id="ck-bank" class="form-control">
+                    ${MEDIGO_CONFIG.banks.map(b =>
+                      `<option ${b === seller.bankName ? 'selected' : ''}>${this.esc(b)}</option>`).join('')}
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="ck-acc">Số tài khoản <span class="required">*</span></label>
+                  <input type="text" id="ck-acc" class="form-control" inputmode="numeric"
+                         value="${this.esc(seller.bankAccountNo)}" required>
+                </div>
+              </div>
+
+              <!-- Mã giới thiệu ghi nhận tự động từ link của seller, KHÔNG cho sửa tại đây:
+                   sửa được đồng nghĩa hoa hồng có thể bị gán sai người. -->
+              <div class="form-group">
+                <label for="ck-aff">Mã giới thiệu</label>
+                ${affId ? `
+                  <div class="locked-field">
+                    <input type="text" id="ck-aff" class="form-control" value="${this.esc(affId)}"
+                           readonly aria-readonly="true">
+                    ${this.icon('key', 18, 'color: var(--c5)')}
+                  </div>
+                  <span class="text-sm text-muted">
+                    Ghi nhận tự động từ link giới thiệu bạn đã bấm. Không thể chỉnh sửa.
+                  </span>
+                ` : `
+                  <div class="locked-field">
+                    <input type="text" id="ck-aff" class="form-control" value="Không có"
+                           readonly aria-readonly="true">
+                  </div>
+                  <span class="text-sm text-muted">
+                    Bạn không vào qua link giới thiệu nào nên đơn hàng không gắn mã giới thiệu.
+                  </span>
+                `}
+              </div>
+
+              <p class="text-sm text-muted">Thông tin ngân hàng chỉ hiển thị đầy đủ trong khu vực quản trị nội bộ.</p>
             </div>
 
             <div class="section-card bordered">
@@ -708,21 +813,24 @@ const MedigoViews = {
       </div>
     `;
 
-    this.onCityChange();
+    // Nạp Phường/Xã theo tỉnh, giữ lại phường đang có trong hồ sơ
+    this.fillWards('ck-city', 'ck-ward', seller.ward);
   },
 
-  // Dữ liệu địa giới rút gọn cho prototype (select phụ thuộc nhau theo Spec A2).
+  /**
+   * Dữ liệu địa giới rút gọn cho prototype.
+   * Địa chỉ chỉ còn HAI CẤP: Tỉnh/Thành phố → Phường/Xã (đã bỏ cấp Quận/Huyện).
+   * Cấu trúc vì thế là { tỉnh: [danh sách phường/xã] } thay vì lồng ba tầng.
+   */
   addressTree: {
-    'Hà Nội': {
-      'Quận Thanh Xuân': ['Phường Thanh Xuân Trung', 'Phường Nhân Chính', 'Phường Khương Đình'],
-      'Quận Hà Đông': ['Phường Mộ Lao', 'Phường Văn Quán', 'Phường Quang Trung'],
-      'Quận Cầu Giấy': ['Phường Dịch Vọng', 'Phường Quan Hoa', 'Phường Nghĩa Tân']
-    },
-    'TP. Hồ Chí Minh': {
-      'Quận 1': ['Phường Bến Nghé', 'Phường Bến Thành', 'Phường Đa Kao'],
-      'Quận Bình Thạnh': ['Phường 1', 'Phường 12', 'Phường 25'],
-      'Thành phố Thủ Đức': ['Phường Linh Trung', 'Phường Hiệp Bình Chánh']
-    }
+    'Hà Nội': [
+      'Phường Hà Đông', 'Phường Thanh Xuân', 'Phường Cầu Giấy',
+      'Phường Ba Đình', 'Phường Hoàn Kiếm', 'Phường Đống Đa', 'Phường Tây Hồ'
+    ],
+    'TP. Hồ Chí Minh': [
+      'Phường Sài Gòn', 'Phường Bến Thành', 'Phường Chợ Lớn',
+      'Phường Bình Thạnh', 'Phường Gia Định', 'Phường Thủ Đức'
+    ]
   },
 
   /** Ghi nhớ cổng thanh toán khách chọn để màn QR (A3) dùng lại. */
@@ -734,22 +842,25 @@ const MedigoViews = {
     });
   },
 
-  onCityChange: function() {
-    const city = document.getElementById('ck-city');
-    const district = document.getElementById('ck-district');
-    if (!city || !district) return;
-    const districts = Object.keys(this.addressTree[city.value] || {});
-    district.innerHTML = districts.map(d => `<option>${this.esc(d)}</option>`).join('');
-    this.onDistrictChange();
+  /**
+   * Đổi Tỉnh/Thành phố thì nạp lại danh sách Phường/Xã (địa chỉ hai cấp).
+   * `selected` dùng để giữ lại phường đang có trong hồ sơ khi vẽ lần đầu.
+   */
+  fillWards: function(citySelectId, wardSelectId, selected) {
+    const city = document.getElementById(citySelectId);
+    const ward = document.getElementById(wardSelectId);
+    if (!city || !ward) return;
+    const wards = this.addressTree[city.value] || [];
+    ward.innerHTML = wards.map(w =>
+      `<option ${w === selected ? 'selected' : ''}>${this.esc(w)}</option>`).join('');
   },
 
-  onDistrictChange: function() {
-    const city = document.getElementById('ck-city');
-    const district = document.getElementById('ck-district');
-    const ward = document.getElementById('ck-ward');
-    if (!city || !district || !ward) return;
-    const wards = (this.addressTree[city.value] || {})[district.value] || [];
-    ward.innerHTML = wards.map(w => `<option>${this.esc(w)}</option>`).join('');
+  onCityChange: function() {
+    this.fillWards('ck-city', 'ck-ward');
+  },
+
+  onSellerCityChange: function() {
+    this.fillWards('sg-city', 'sg-ward');
   },
 
   /**
@@ -802,8 +913,53 @@ const MedigoViews = {
       return false;
     }
 
-    const aff = document.getElementById('ck-aff');
-    if (aff && aff.value.trim()) MedigoStore.setAffId(aff.value.trim());
+    const val = (id) => (document.getElementById(id) || {}).value || '';
+    const cccd = val('ck-cccd').trim();
+    const acc = val('ck-acc').trim();
+
+    const fail = (id, message) => {
+      const input = document.getElementById(id);
+      const group = input && input.closest('.form-group');
+      if (group) {
+        group.classList.add('has-error');
+        let err = group.querySelector('.error-message');
+        if (!err) {
+          err = document.createElement('p');
+          err.className = 'error-message';
+          group.appendChild(err);
+        }
+        err.textContent = message;
+        err.hidden = false;
+      }
+      if (input) { try { input.focus(); } catch (e) {} input.scrollIntoView({ block: 'center' }); }
+      return false;
+    };
+
+    form.querySelectorAll('.form-group.has-error').forEach(g => g.classList.remove('has-error'));
+    if (!/^\d{9,12}$/.test(cccd)) return fail('ck-cccd', 'Số CCCD gồm 9 đến 12 chữ số.');
+    if (!/^\d{6,20}$/.test(acc)) return fail('ck-acc', 'Số tài khoản chỉ gồm chữ số, độ dài 6 đến 20.');
+
+    // Lưu lại để bước đăng ký seller (A6) điền sẵn được — Spec mục A6.
+    MedigoStore.saveSeller({
+      fullName: val('ck-name').trim(),
+      shortName: this.shortenName(val('ck-name').trim()),
+      phone: val('ck-phone').trim(),
+      email: val('email-1').trim(),
+      cccd: cccd,
+      address: val('ck-address').trim(),
+      city: val('ck-city'),
+      ward: val('ck-ward'),
+      dob: val('ck-dob').trim(),
+      gender: val('ck-gender')
+    });
+    MedigoStore.saveSellerBank({
+      bankName: val('ck-bank'),
+      bankAccountNo: acc,
+      bankAccountOwner: MedigoStore.getSeller().bankAccountOwner
+    });
+
+    // aff_id không đọc lại từ form: ô đó chỉ để đọc, giá trị thật đã lưu
+    // từ lúc khách bấm link giới thiệu (xem MedigoApp.captureAffId).
 
     // Không rời trang: mở modal QR đè lên màn nhận hàng (theo mockup)
     this.openQrModal();
@@ -826,7 +982,7 @@ const MedigoViews = {
   /** Khối HTML của modal QR, được nhúng sẵn trong A2. */
   qrModalMarkup: function() {
     const config = MEDIGO_CONFIG;
-    const qty = Math.max(1, MedigoStore.getCartQty());
+    const qty = MedigoStore.getOrderQty();
     const total = config.product.price * qty;
     const ref = this.orderRef;
     const pay = MEDIGO_RULES.paymentMethod(MedigoStore.getPaymentMethod());
@@ -950,7 +1106,7 @@ const MedigoViews = {
     const seller = MedigoStore.getSeller();
     const orders = MedigoStore.getOrders();
     const order = orders[0];
-    const qty = Math.max(1, MedigoStore.getCartQty());
+    const qty = MedigoStore.getOrderQty();
 
     container.innerHTML = `
       <div class="web-wrapper text-center">
@@ -1011,7 +1167,7 @@ const MedigoViews = {
       </div>
     `;
 
-    MedigoStore.clearCart();
+    MedigoStore.resetOrderQty();
 
     setTimeout(() => this.openModal('seller-invite-modal'), 1000);
   },
@@ -1048,7 +1204,7 @@ const MedigoViews = {
         desc: 'Thời gian thực hiện giao dịch đã kết thúc. Vui lòng tạo mã QR mới.',
         buttons: `
           <button class="btn btn-primary btn-full btn-lg" onclick="MedigoApp.navigate('A3')">Tạo mã mới</button>
-          <button class="btn btn-secondary btn-full" onclick="MedigoApp.navigate('A1')">Quay lại giỏ hàng</button>`
+          <button class="btn btn-secondary btn-full" onclick="MedigoApp.navigate('A2')">Quay lại thông tin đơn hàng</button>`
       },
       failed: {
         variant: 'error',
@@ -1121,7 +1277,8 @@ const MedigoViews = {
             <div>Chúng tôi đã điền sẵn thông tin từ đơn hàng của bạn. Vui lòng kiểm tra lại.</div>
           </div>
 
-          <form onsubmit="event.preventDefault(); MedigoApp.navigate('A7');">
+          <form id="seller-profile-form" novalidate
+                onsubmit="return MedigoViews.submitSellerProfile(event)">
             <div class="section-card bordered">
               <h3 class="card-title">Thông tin cá nhân</h3>
 
@@ -1152,18 +1309,18 @@ const MedigoViews = {
                 <input type="text" id="sg-address" class="form-control" value="${this.esc(seller.address)}" required>
               </div>
 
-              <div class="form-grid-3">
+              <!-- Địa chỉ hai cấp: Tỉnh/Thành phố → Phường/Xã (đã bỏ cấp Quận/Huyện) -->
+              <div class="form-grid-2">
                 <div class="form-group">
                   <label for="sg-city">Tỉnh/Thành phố <span class="required">*</span></label>
-                  <select id="sg-city" class="form-control"><option>${this.esc(seller.city)}</option></select>
-                </div>
-                <div class="form-group">
-                  <label for="sg-district">Quận/Huyện <span class="required">*</span></label>
-                  <select id="sg-district" class="form-control"><option>${this.esc(seller.district)}</option></select>
+                  <select id="sg-city" class="form-control" onchange="MedigoViews.onSellerCityChange()">
+                    ${Object.keys(this.addressTree).map(c =>
+                      `<option ${c === seller.city ? 'selected' : ''}>${this.esc(c)}</option>`).join('')}
+                  </select>
                 </div>
                 <div class="form-group">
                   <label for="sg-ward">Phường/Xã <span class="required">*</span></label>
-                  <select id="sg-ward" class="form-control"><option>${this.esc(seller.ward)}</option></select>
+                  <select id="sg-ward" class="form-control"></select>
                 </div>
               </div>
 
@@ -1188,7 +1345,7 @@ const MedigoViews = {
                 <div class="form-group">
                   <label for="sg-bank">Ngân hàng <span class="required">*</span></label>
                   <select id="sg-bank" class="form-control">
-                    ${['Vietcombank', 'BIDV', 'Techcombank', 'MBBank', 'VietinBank'].map(b =>
+                    ${MEDIGO_CONFIG.banks.map(b =>
                       `<option ${b === seller.bankName ? 'selected' : ''}>${b}</option>`).join('')}
                   </select>
                 </div>
@@ -1209,6 +1366,93 @@ const MedigoViews = {
         </div>
       </div>
     `;
+
+    // Nạp Phường/Xã theo tỉnh, giữ lại phường đang có trong hồ sơ
+    this.fillWards('sg-city', 'sg-ward', seller.ward);
+  },
+
+  /**
+   * Lưu hồ sơ seller ở bước 1/3 rồi mới sang bước OTP.
+   * Trước đây form này chỉ điều hướng, không ghi gì — người dùng sửa họ tên hay
+   * số tài khoản xong là mất trắng, và các màn sau vẫn hiện dữ liệu mẫu cũ.
+   */
+  submitSellerProfile: function(event) {
+    event.preventDefault();
+    const form = event.target;
+    const val = (id) => (document.getElementById(id) || {}).value || '';
+
+    // Xóa lỗi cũ
+    form.querySelectorAll('.form-group.has-error').forEach(g => g.classList.remove('has-error'));
+    form.querySelectorAll('.error-message').forEach(e => { e.hidden = true; e.textContent = ''; });
+
+    const fail = (id, message) => {
+      const input = document.getElementById(id);
+      const group = input && input.closest('.form-group');
+      if (group) {
+        group.classList.add('has-error');
+        let err = group.querySelector('.error-message');
+        if (!err) {
+          err = document.createElement('p');
+          err.className = 'error-message';
+          group.appendChild(err);
+        }
+        err.textContent = message;
+        err.hidden = false;
+      }
+      if (input) {
+        try { input.focus(); } catch (e) {}
+        input.scrollIntoView({ block: 'center' });
+      }
+      return false;
+    };
+
+    const name = val('sg-name').trim();
+    const phone = val('sg-phone').trim();
+    const email = val('sg-email').trim();
+    const cccd = val('sg-cccd').trim();
+    const acc = val('sg-acc').trim();
+    const owner = val('sg-owner').trim();
+
+    if (name.length < 3) return fail('sg-name', 'Vui lòng nhập họ và tên.');
+    if (!/^0\d{9}$/.test(phone)) return fail('sg-phone', 'Số điện thoại gồm 10 chữ số, bắt đầu bằng 0.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return fail('sg-email', 'Email chưa đúng định dạng.');
+    if (!/^\d{9,12}$/.test(cccd)) return fail('sg-cccd', 'Số CCCD gồm 9 đến 12 chữ số.');
+    if (!/^\d{6,20}$/.test(acc)) return fail('sg-acc', 'Số tài khoản chỉ gồm chữ số, độ dài 6 đến 20.');
+    if (owner.length < 3) return fail('sg-owner', 'Vui lòng nhập tên chủ tài khoản.');
+
+    // Hồ sơ cá nhân
+    MedigoStore.saveSeller({
+      fullName: name,
+      shortName: MedigoViews.shortenName(name),
+      phone: phone,
+      email: email,
+      cccd: cccd,
+      address: val('sg-address').trim(),
+      city: val('sg-city'),
+      ward: val('sg-ward'),
+      dob: val('sg-dob').trim(),
+      gender: val('sg-gender')
+    });
+
+    // Tài khoản nhận hoa hồng — ghi cả sang hồ sơ admin để hai bên không lệch
+    MedigoStore.saveSellerBank({
+      bankName: val('sg-bank'),
+      bankAccountNo: acc,
+      bankAccountOwner: owner
+    });
+
+    MedigoApp.navigate('A7');
+    return false;
+  },
+
+  /** "Nguyễn Văn A" -> "Nguyễn V. A" (dùng cho danh sách tuyến dưới). */
+  shortenName: function(fullName) {
+    const parts = String(fullName || '').trim().split(/\s+/);
+    if (parts.length < 3) return fullName;
+    const first = parts[0];
+    const last = parts[parts.length - 1];
+    const middle = parts.slice(1, -1).map(w => w.charAt(0).toUpperCase() + '.').join(' ');
+    return `${first} ${middle} ${last}`;
   },
 
   renderA7: function(container) {
@@ -1280,21 +1524,25 @@ const MedigoViews = {
     }, 1000);
   },
 
-  otpBoxes: function() {
-    return Array.from(document.querySelectorAll('#otp-container .otp-box'));
+  /**
+   * Các hàm OTP dùng chung cho nhiều nơi (A7 đăng ký, modal đổi tài khoản thụ hưởng).
+   * Truyền id khung chứa để mỗi nơi có bộ ô riêng, mặc định là màn A7.
+   */
+  otpBoxes: function(containerId) {
+    return Array.from(document.querySelectorAll('#' + (containerId || 'otp-container') + ' .otp-box'));
   },
 
-  handleOtpInput: function(input, index) {
+  handleOtpInput: function(input, index, containerId) {
     input.value = input.value.replace(/\D/g, '').slice(0, 1);
-    this.clearOtpError();
+    this.clearOtpError(containerId);
     if (input.value) {
-      const boxes = this.otpBoxes();
+      const boxes = this.otpBoxes(containerId);
       if (boxes[index + 1]) boxes[index + 1].focus();
     }
   },
 
-  handleOtpKey: function(event, index) {
-    const boxes = this.otpBoxes();
+  handleOtpKey: function(event, index, containerId) {
+    const boxes = this.otpBoxes(containerId);
     if (event.key === 'Backspace' && !event.target.value && boxes[index - 1]) {
       boxes[index - 1].focus();
       event.preventDefault();
@@ -1304,21 +1552,43 @@ const MedigoViews = {
   },
 
   /** Dán cả chuỗi OTP một lần (Spec A7). */
-  handleOtpPaste: function(event) {
+  handleOtpPaste: function(event, containerId) {
     event.preventDefault();
     const text = (event.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
-    const boxes = this.otpBoxes();
+    const boxes = this.otpBoxes(containerId);
     boxes.forEach((b, i) => { b.value = text[i] || ''; });
-    this.clearOtpError();
+    this.clearOtpError(containerId);
     const nextEmpty = boxes.find(b => !b.value) || boxes[boxes.length - 1];
-    nextEmpty.focus();
+    if (nextEmpty) nextEmpty.focus();
   },
 
-  clearOtpError: function() {
-    const group = document.getElementById('otp-container');
-    const err = document.getElementById('otp-error');
+  clearOtpError: function(containerId) {
+    const id = containerId || 'otp-container';
+    const group = document.getElementById(id);
+    const err = document.getElementById(id === 'otp-container' ? 'otp-error' : id + '-error');
     if (group) group.classList.remove('error');
     if (err) { err.hidden = true; err.textContent = ''; }
+  },
+
+  /** Hiện lỗi OTP sai cho một khung ô bất kỳ. */
+  showOtpError: function(containerId, message) {
+    const id = containerId || 'otp-container';
+    const group = document.getElementById(id);
+    const err = document.getElementById(id === 'otp-container' ? 'otp-error' : id + '-error');
+    if (group) group.classList.add('error');
+    if (err) { err.textContent = message; err.hidden = false; }
+    const boxes = this.otpBoxes(id);
+    boxes.forEach(b => { b.value = ''; });
+    if (boxes[0]) { try { boxes[0].focus(); } catch (e) {} }
+  },
+
+  /** Dựng 6 ô nhập OTP cho một khung chứa. */
+  otpInputsMarkup: function(containerId) {
+    return Array.from({ length: MEDIGO_CONFIG.otp.length }, (_, i) => `
+      <input type="text" inputmode="numeric" maxlength="1" class="otp-box"
+             aria-label="Ký tự thứ ${i + 1} của mã OTP"
+             oninput="MedigoViews.handleOtpInput(this, ${i}, '${containerId}')"
+             onkeydown="MedigoViews.handleOtpKey(event, ${i}, '${containerId}')">`).join('');
   },
 
   verifyOtp: function() {
@@ -1400,7 +1670,8 @@ const MedigoViews = {
   /** Khối HTML của modal "Kích hoạt thành công", nhúng sẵn trong A8. */
   activatedModalMarkup: function() {
     const seller = MedigoStore.getSeller();
-    const refLink = `gocare.vn/san-pham/${MEDIGO_CONFIG.product.code}?aff_id=${seller.aff_id}`;
+    const refUrl = this.referralUrl(seller.aff_id);      // URL thật, bấm được
+    const refLink = this.referralLabel(seller.aff_id);   // dạng rút gọn để hiển thị
 
     return `
       <div id="activated-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="activated-title"
@@ -1422,7 +1693,7 @@ const MedigoViews = {
             <span class="text-sm text-muted">Link giới thiệu sản phẩm</span>
             <div class="ref-field">
               <span class="ref-link" title="${this.esc(refLink)}">${this.esc(refLink)}</span>
-              <button class="ref-copy-btn" data-copy="${this.esc(refLink)}"
+              <button class="ref-copy-btn" data-copy="${this.esc(refUrl)}"
                       aria-label="Sao chép link giới thiệu"
                       onclick="MedigoViews.copyText(this.dataset.copy, 'Đã sao chép link giới thiệu.')">
                 ${this.icon('copy', 20)}
@@ -1431,7 +1702,7 @@ const MedigoViews = {
           </div>
 
           <div class="modal-actions-column">
-            <button class="btn btn-secondary btn-full" data-copy="${this.esc(refLink)}"
+            <button class="btn btn-secondary btn-full" data-copy="${this.esc(refUrl)}"
                     onclick="MedigoViews.shareLink(this.dataset.copy)">
               ${this.icon('share', 18)} Chia sẻ link
             </button>
@@ -1473,7 +1744,8 @@ const MedigoViews = {
     const seller = MedigoStore.getSeller();
     const downlines = MedigoStore.getDownlines();
     const history = MedigoStore.getHistory();
-    const refLink = `gocare.vn/san-pham/${MEDIGO_CONFIG.product.code}?aff_id=${seller.aff_id}`;
+    const refUrl = this.referralUrl(seller.aff_id);      // URL thật, bấm được
+    const refLink = this.referralLabel(seller.aff_id);   // dạng rút gọn để hiển thị
 
     // Hạng và tiền hoa hồng đều suy ra từ file cấu hình, không viết cứng.
     const rank = MEDIGO_RULES.rankFor(seller.totalOrders);
@@ -1498,9 +1770,9 @@ const MedigoViews = {
               <div class="ref-link" title="${this.esc(refLink)}">${this.esc(refLink)}</div>
             </div>
             <div class="referral-banner-actions">
-              <button class="btn btn-secondary" data-copy="${this.esc(refLink)}"
+              <button class="btn btn-secondary" data-copy="${this.esc(refUrl)}"
                       onclick="MedigoViews.copyText(this.dataset.copy, 'Đã sao chép link giới thiệu.')">Copy link</button>
-              <button class="btn btn-primary" data-copy="${this.esc(refLink)}"
+              <button class="btn btn-primary" data-copy="${this.esc(refUrl)}"
                       onclick="MedigoViews.shareLink(this.dataset.copy)">Chia sẻ</button>
             </div>
           </div>
@@ -1613,7 +1885,7 @@ const MedigoViews = {
                     </div>`;
                 }).join('') : this.emptyState('users', 'Chưa có tuyến dưới',
                     'Chia sẻ link giới thiệu để bắt đầu.',
-                    `<button class="btn btn-primary" data-copy="${this.esc(refLink)}"
+                    `<button class="btn btn-primary" data-copy="${this.esc(refUrl)}"
                              onclick="MedigoViews.shareLink(this.dataset.copy)">Chia sẻ link</button>`)}
               </div>
             </div>
@@ -1721,7 +1993,7 @@ const MedigoViews = {
           </form>
 
           <p class="login-alt">
-            <a href="#A0" onclick="event.preventDefault(); MedigoApp.navigate('A0')">Chưa có tài khoản? Tìm hiểu cách tham gia</a>
+            <a href="#A6" onclick="event.preventDefault(); MedigoApp.navigate('A6')">Chưa có tài khoản? Đăng ký làm Seller</a>
           </p>
         </div>
       </div>
@@ -1798,7 +2070,7 @@ const MedigoViews = {
             <div class="section-card bordered">
               <div class="card-title-row">
                 <strong>Tài khoản ngân hàng thụ hưởng</strong>
-                <a href="#A6" onclick="event.preventDefault(); MedigoApp.navigate('A6')">Thay đổi thông tin</a>
+                <button class="btn btn-link" onclick="MedigoViews.openChangeBank()">Thay đổi thông tin</button>
               </div>
               <p>Ngân hàng: <strong>${this.esc(seller.bankName)}</strong></p>
               <p>Số tài khoản: <strong>${this.esc(this.maskAccount(seller.bankAccountNo))}</strong></p>
@@ -1810,6 +2082,9 @@ const MedigoViews = {
             <button type="submit" class="btn btn-primary btn-full btn-lg">Gửi yêu cầu rút tiền</button>
           </form>
         </div>
+
+        ${this.withdrawConfirmMarkup()}
+        ${this.changeBankMarkup()}
       </div>
     `;
 
@@ -1864,6 +2139,11 @@ const MedigoViews = {
     err.hidden = !message;
   },
 
+  /**
+   * Gửi yêu cầu rút tiền: kiểm tra hợp lệ rồi mở modal xác nhận.
+   * Trước đây dùng window.confirm() — hộp thoại của trình duyệt hiện tên miền,
+   * không theo hệ thiết kế và không định dạng được số tiền cho dễ đọc.
+   */
   submitWithdrawal: function(event) {
     event.preventDefault();
     const input = document.getElementById('withdraw-amt');
@@ -1877,29 +2157,314 @@ const MedigoViews = {
       return false;
     }
 
-    const calc = MEDIGO_RULES.calcWithdrawal(amount);
-    const ok = window.confirm(
-      `Xác nhận gửi yêu cầu rút tiền?\n\n` +
-      `Số tiền rút: ${this.formatMoney(calc.amount)}\n` +
-      `Thuế TNCN: ${calc.taxable ? this.formatMoney(calc.tax) : 'Không áp dụng'}\n` +
-      `Thực nhận: ${this.formatMoney(calc.net)}\n` +
-      `Tài khoản: ${seller.bankName} - ${this.maskAccount(seller.bankAccountNo)} (${seller.bankAccountOwner})`
-    );
-    if (!ok) return false;
+    this.openWithdrawConfirm(amount);
+    return false;
+  },
 
-    const submitBtn = event.target.querySelector('button[type="submit"]');
-    if (submitBtn) { submitBtn.disabled = true; submitBtn.classList.add('loading'); }
+  // ====================================================
+  // Đổi tài khoản ngân hàng thụ hưởng (mở từ A12)
+  //
+  // Trước đây liên kết "Thay đổi thông tin" dẫn thẳng vào A6 — bước 1/3 của luồng
+  // ĐĂNG KÝ seller — nên người dùng phải khai lại toàn bộ hồ sơ cá nhân, đọc lại
+  // điều khoản affiliate, và kết thúc ở màn "Kích hoạt thành công" kèm mã giới thiệu
+  // như vừa đăng ký mới. Sai nghiệp vụ: đổi thông tin nhận tiền chỉ cần XÁC THỰC,
+  // không tạo lại mã giới thiệu và không đăng ký lại.
+  // ====================================================
+  changeBankMarkup: function() {
+    const seller = MedigoStore.getSeller();
+    const banks = MEDIGO_CONFIG.banks;
+
+    return `
+      <div id="change-bank-modal" class="modal-backdrop" role="dialog" aria-modal="true"
+           aria-labelledby="change-bank-title"
+           onclick="if(event.target===this) MedigoViews.closeChangeBank()">
+        <div class="modal-card change-bank-card">
+          <button class="modal-close modal-close-corner" aria-label="Đóng"
+                  onclick="MedigoViews.closeChangeBank()">✕</button>
+
+          <h3 id="change-bank-title" class="modal-title">Đổi tài khoản thụ hưởng</h3>
+          <p class="text-sm text-muted" id="change-bank-sub">Cập nhật tài khoản nhận hoa hồng của bạn.</p>
+
+          <!-- Bước 1: nhập thông tin mới -->
+          <div id="change-bank-step-form">
+            <div class="form-group">
+              <label for="cb-bank">Ngân hàng <span class="required">*</span></label>
+              <select id="cb-bank" class="form-control">
+                ${banks.map(b => `<option ${b === seller.bankName ? 'selected' : ''}>${this.esc(b)}</option>`).join('')}
+              </select>
+            </div>
+
+            <div class="form-group" id="grp-cb-acc">
+              <label for="cb-acc">Số tài khoản <span class="required">*</span></label>
+              <input type="text" id="cb-acc" class="form-control" inputmode="numeric"
+                     value="${this.esc(seller.bankAccountNo)}"
+                     oninput="MedigoViews.clearBankError()">
+              <p class="error-message" id="err-cb-acc" hidden></p>
+            </div>
+
+            <div class="form-group" id="grp-cb-owner">
+              <label for="cb-owner">Chủ tài khoản <span class="required">*</span></label>
+              <input type="text" id="cb-owner" class="form-control"
+                     value="${this.esc(seller.bankAccountOwner)}"
+                     oninput="MedigoViews.clearBankError()">
+              <p class="error-message" id="err-cb-owner" hidden></p>
+            </div>
+
+            <div class="callout callout-warning">
+              ${this.icon('warning', 20)}
+              <div>Tên chủ tài khoản phải trùng với hồ sơ CCCD đã đăng ký, nếu không yêu cầu rút tiền sẽ bị từ chối.</div>
+            </div>
+
+            <div class="modal-actions">
+              <button class="btn btn-secondary btn-lg" onclick="MedigoViews.closeChangeBank()">Hủy</button>
+              <button class="btn btn-primary btn-lg" onclick="MedigoViews.startBankOtp()">Tiếp tục</button>
+            </div>
+          </div>
+
+          <!-- Bước 2: xác thực OTP (KHÔNG tạo lại mã giới thiệu) -->
+          <div id="change-bank-step-otp" hidden>
+            <p class="modal-text">
+              Mã xác nhận đã gửi tới <strong>${this.esc(this.maskPhone(seller.phone))}</strong>
+            </p>
+
+            <div id="cb-otp" class="otp-group" onpaste="MedigoViews.handleOtpPaste(event, 'cb-otp')">
+              ${this.otpInputsMarkup('cb-otp')}
+            </div>
+            <p class="error-message text-center" id="cb-otp-error" hidden></p>
+
+            <div class="otp-resend">
+              Không nhận được mã?
+              <button id="cb-resend-btn" class="btn btn-link" disabled>Gửi lại (${MEDIGO_CONFIG.otp.resendSeconds}s)</button>
+            </div>
+
+            <div class="demo-hint">
+              <small class="demo-hint-label">[MÔ PHỎNG KIỂM THỬ DEMO]</small>
+              Mã hợp lệ: <strong>${this.esc(MEDIGO_CONFIG.otp.mockCode)}</strong>
+            </div>
+
+            <div class="modal-actions">
+              <button class="btn btn-secondary btn-lg" onclick="MedigoViews.backToBankForm()">Quay lại</button>
+              <button class="btn btn-primary btn-lg" id="cb-verify-btn">Xác nhận</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  openChangeBank: function() {
+    const modal = document.getElementById('change-bank-modal');
+    if (!modal) return;
+    this.backToBankForm();
+    modal.classList.add('active');
+    this._bankEsc = (e) => { if (e.key === 'Escape') this.closeChangeBank(); };
+    document.addEventListener('keydown', this._bankEsc);
+    const first = document.getElementById('cb-bank');
+    if (first) { try { first.focus(); } catch (e) {} }
+  },
+
+  closeChangeBank: function() {
+    const modal = document.getElementById('change-bank-modal');
+    if (modal) modal.classList.remove('active');
+    if (window.bankOtpInterval) { clearInterval(window.bankOtpInterval); window.bankOtpInterval = null; }
+    if (this._bankEsc) { document.removeEventListener('keydown', this._bankEsc); this._bankEsc = null; }
+  },
+
+  backToBankForm: function() {
+    const form = document.getElementById('change-bank-step-form');
+    const otp = document.getElementById('change-bank-step-otp');
+    const sub = document.getElementById('change-bank-sub');
+    if (form) form.hidden = false;
+    if (otp) otp.hidden = true;
+    if (sub) sub.textContent = 'Cập nhật tài khoản nhận hoa hồng của bạn.';
+    if (window.bankOtpInterval) { clearInterval(window.bankOtpInterval); window.bankOtpInterval = null; }
+    this.clearOtpError('cb-otp');
+  },
+
+  clearBankError: function() {
+    ['acc', 'owner'].forEach((k) => {
+      const g = document.getElementById('grp-cb-' + k);
+      const e = document.getElementById('err-cb-' + k);
+      if (g) g.classList.remove('has-error');
+      if (e) { e.hidden = true; e.textContent = ''; }
+    });
+  },
+
+  setBankError: function(field, message) {
+    const g = document.getElementById('grp-cb-' + field);
+    const e = document.getElementById('err-cb-' + field);
+    if (g) g.classList.add('has-error');
+    if (e) { e.textContent = message; e.hidden = false; }
+    const input = document.getElementById('cb-' + field);
+    if (input) { try { input.focus(); } catch (err) {} }
+  },
+
+  /** Kiểm tra thông tin rồi chuyển sang bước xác thực OTP. */
+  startBankOtp: function() {
+    this.clearBankError();
+    const acc = document.getElementById('cb-acc').value.trim();
+    const owner = document.getElementById('cb-owner').value.trim();
+
+    if (!/^\d{6,20}$/.test(acc)) {
+      this.setBankError('acc', 'Số tài khoản chỉ gồm chữ số, độ dài 6 đến 20.');
+      return;
+    }
+    if (owner.length < 3) {
+      this.setBankError('owner', 'Vui lòng nhập tên chủ tài khoản.');
+      return;
+    }
+
+    document.getElementById('change-bank-step-form').hidden = true;
+    document.getElementById('change-bank-step-otp').hidden = false;
+    document.getElementById('change-bank-sub').textContent = 'Xác thực OTP để hoàn tất thay đổi.';
+
+    const verify = document.getElementById('cb-verify-btn');
+    verify.onclick = () => this.confirmChangeBank();
+
+    const boxes = this.otpBoxes('cb-otp');
+    boxes.forEach(b => { b.value = ''; });
+    if (boxes[0]) { try { boxes[0].focus(); } catch (e) {} }
+
+    // Đếm ngược gửi lại mã
+    let left = MEDIGO_CONFIG.otp.resendSeconds;
+    const btn = document.getElementById('cb-resend-btn');
+    btn.disabled = true;
+    btn.textContent = `Gửi lại (${left}s)`;
+    if (window.bankOtpInterval) clearInterval(window.bankOtpInterval);
+    window.bankOtpInterval = setInterval(() => {
+      left--;
+      const el = document.getElementById('cb-resend-btn');
+      if (!el) { clearInterval(window.bankOtpInterval); window.bankOtpInterval = null; return; }
+      if (left > 0) {
+        el.textContent = `Gửi lại (${left}s)`;
+      } else {
+        el.disabled = false;
+        el.textContent = 'Gửi lại ngay';
+        el.onclick = () => this.toast('Đã gửi lại mã xác thực.');
+        clearInterval(window.bankOtpInterval);
+        window.bankOtpInterval = null;
+      }
+    }, 1000);
+  },
+
+  /**
+   * Xác thực xong thì lưu tài khoản mới và quay lại màn rút tiền.
+   * Không tạo lại mã giới thiệu, không đụng tới hồ sơ cá nhân.
+   */
+  confirmChangeBank: function() {
+    const code = this.otpBoxes('cb-otp').map(b => b.value).join('');
+    if (code !== MEDIGO_CONFIG.otp.mockCode) {
+      this.showOtpError('cb-otp', 'Mã không đúng. Vui lòng thử lại.');
+      return;
+    }
+
+    const affBefore = MedigoStore.getSeller().aff_id;
+    MedigoStore.saveSellerBank({
+      bankName: document.getElementById('cb-bank').value,
+      bankAccountNo: document.getElementById('cb-acc').value.trim(),
+      bankAccountOwner: document.getElementById('cb-owner').value.trim()
+    });
+
+    this.closeChangeBank();
+    this.toast('Đã cập nhật tài khoản thụ hưởng. Mã giới thiệu ' + affBefore + ' giữ nguyên.');
+    MedigoApp.render('A12');
+  },
+
+  /** Khối HTML của modal xác nhận rút tiền, nhúng sẵn trong A12. */
+  withdrawConfirmMarkup: function() {
+    return `
+      <div id="withdraw-confirm-modal" class="modal-backdrop" role="dialog" aria-modal="true"
+           aria-labelledby="withdraw-confirm-title"
+           onclick="if(event.target===this) MedigoViews.closeWithdrawConfirm()">
+        <div class="modal-card withdraw-modal-card">
+          <button class="modal-close modal-close-corner" aria-label="Đóng"
+                  onclick="MedigoViews.closeWithdrawConfirm()">✕</button>
+
+          <h3 id="withdraw-confirm-title" class="modal-title">Xác nhận yêu cầu rút tiền</h3>
+          <p class="text-sm text-muted">Vui lòng kiểm tra kỹ thông tin trước khi gửi.</p>
+
+          <div class="qr-info" id="withdraw-confirm-figures"></div>
+
+          <div class="drawer-section" id="withdraw-confirm-bank"></div>
+
+          <p class="text-sm text-muted" id="withdraw-confirm-note"></p>
+
+          <div class="modal-actions">
+            <button class="btn btn-secondary btn-lg" onclick="MedigoViews.closeWithdrawConfirm()">Hủy</button>
+            <button class="btn btn-primary btn-lg" id="withdraw-confirm-btn">Xác nhận gửi</button>
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  openWithdrawConfirm: function(amount) {
+    const modal = document.getElementById('withdraw-confirm-modal');
+    if (!modal) return;
+
+    const seller = MedigoStore.getSeller();
+    const calc = MEDIGO_RULES.calcWithdrawal(amount);
+    const w = MEDIGO_CONFIG.withdrawal;
+
+    document.getElementById('withdraw-confirm-figures').innerHTML = `
+      <div class="summary-line">
+        <span>Số tiền rút</span>
+        <strong class="text-strong">${this.formatMoney(calc.amount)}</strong>
+      </div>
+      <div class="summary-line">
+        <span>Thuế TNCN (${Math.round(calc.taxRate * 100)}%)</span>
+        <strong class="${calc.taxable ? 'text-error' : 'text-muted'}">
+          ${calc.taxable ? '-' + this.formatMoney(calc.tax) : 'Không áp dụng'}
+        </strong>
+      </div>
+      <hr class="divider divider-dashed">
+      <div class="summary-total">
+        <span>Thực nhận</span>
+        <strong class="text-success">${this.formatMoney(calc.net)}</strong>
+      </div>`;
+
+    document.getElementById('withdraw-confirm-bank').innerHTML = `
+      <h4>${this.icon('bank', 16)} Tài khoản thụ hưởng</h4>
+      <p>Ngân hàng: <strong>${this.esc(seller.bankName)}</strong></p>
+      <p>Số tài khoản: <strong>${this.esc(this.maskAccount(seller.bankAccountNo))}</strong></p>
+      <p>Chủ tài khoản: <strong>${this.esc(seller.bankAccountOwner)}</strong></p>`;
+
+    document.getElementById('withdraw-confirm-note').textContent =
+      `Thời gian xử lý dự kiến: ${w.estimatedProcessingDays}.`;
+
+    const btn = document.getElementById('withdraw-confirm-btn');
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btn.onclick = () => this.confirmWithdraw(amount, btn);
+
+    modal.classList.add('active');
+    this._withdrawEsc = (e) => { if (e.key === 'Escape') this.closeWithdrawConfirm(); };
+    document.addEventListener('keydown', this._withdrawEsc);
+    try { btn.focus(); } catch (err) {}
+  },
+
+  closeWithdrawConfirm: function() {
+    const modal = document.getElementById('withdraw-confirm-modal');
+    if (modal) modal.classList.remove('active');
+    if (this._withdrawEsc) {
+      document.removeEventListener('keydown', this._withdrawEsc);
+      this._withdrawEsc = null;
+    }
+  },
+
+  confirmWithdraw: function(amount, btn) {
+    if (!this.lockButton(btn)) return; // chống bấm hai lần
 
     const result = MedigoStore.createWithdrawal(amount);
     if (!result.ok) {
-      if (submitBtn) { submitBtn.disabled = false; submitBtn.classList.remove('loading'); }
+      this.closeWithdrawConfirm();
       this.setWithdrawError(result.message);
-      return false;
+      return;
     }
 
+    this.closeWithdrawConfirm();
     this.toast('Đã gửi yêu cầu rút tiền.');
     MedigoApp.navigate('A12?state=submitted');
-    return false;
   },
 
   // ====================================================
@@ -1918,7 +2483,8 @@ const MedigoViews = {
           ${orders.length ? orders.map(order => this.renderOrderCard(order)).join('')
             : this.emptyState('box', 'Bạn chưa có đơn hàng nào',
                 'Các đơn hàng và mã kích hoạt sẽ hiển thị tại đây.',
-                `<button class="btn btn-primary btn-lg" onclick="MedigoApp.navigate('A0')">Xem sản phẩm</button>`)}
+                `<button class="btn btn-primary btn-lg" data-go="${MEDIGO_RULES.entryScreen()}"
+                          onclick="MedigoApp.navigate(this.dataset.go)">Mua sản phẩm</button>`)}
         </div>
 
         <div id="activation-modal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="activation-modal-title"
@@ -2103,6 +2669,7 @@ const MedigoViews = {
   // Khung chung cho khu vực Admin
   // ====================================================
   renderAdminSidebar: function(active) {
+    const home = MEDIGO_RULES.entryScreen();
     const item = (code, label, iconName) => `
       <li class="admin-nav-item">
         <a href="#${code}" class="admin-nav-link ${active === code ? 'active' : ''}" data-go="${code}"
@@ -2113,7 +2680,8 @@ const MedigoViews = {
 
     return `
       <div class="admin-sidebar">
-        <a href="#A0" class="admin-sidebar-brand" onclick="event.preventDefault(); MedigoApp.navigate('A0')">
+        <a href="#${home}" class="admin-sidebar-brand" data-go="${home}"
+           onclick="event.preventDefault(); MedigoApp.navigate(this.dataset.go)">
           ${this.logoMark(24)}
           <span>Medigo Admin</span>
         </a>
@@ -2121,9 +2689,11 @@ const MedigoViews = {
           <li class="admin-nav-group">Vận hành</li>
           ${item('B2', 'Thành viên', 'users')}
           ${item('B3', 'Yêu cầu rút tiền', 'cash')}
+          ${item('B4', 'Kho hàng & Mã kích hoạt', 'box')}
           <li class="admin-nav-item admin-nav-item-foot">
-            <a href="#A0" class="admin-nav-link" onclick="event.preventDefault(); MedigoApp.navigate('A0')">
-              ${this.icon('home', 18)} <span>Về trang sản phẩm</span>
+            <a href="#${home}" class="admin-nav-link" data-go="${home}"
+               onclick="event.preventDefault(); MedigoApp.navigate(this.dataset.go)">
+              ${this.icon('home', 18)} <span>Về trang bán hàng</span>
             </a>
           </li>
         </ul>
@@ -2133,7 +2703,8 @@ const MedigoViews = {
   // Trạng thái bộ lọc / phân trang của khu vực admin
   adminState: {
     memberSearch: '', memberRank: '', memberStatus: '', memberPage: 1,
-    withdrawStatus: '', withdrawFrom: '', withdrawTo: '', withdrawPage: 1
+    withdrawStatus: '', withdrawFrom: '', withdrawTo: '', withdrawPage: 1,
+    stockTab: 'orders', stockSearch: '', stockStatus: '', stockPage: 1
   },
 
   // ====================================================
@@ -2637,6 +3208,365 @@ const MedigoViews = {
     `;
 
     this.openDrawer('admin-withdraw-drawer');
+  },
+
+  // ====================================================
+  // B4: Kho hàng & Mã kích hoạt
+  // Theo dõi toàn bộ đơn đã bán và vòng đời mã kích hoạt đi kèm.
+  // LƯU Ý PHẠM VI: Spec mục 7 xếp phần này vào "ngoài phạm vi bản prototype".
+  // Màn này bổ sung theo yêu cầu sau của khách — spec cần được cập nhật lại.
+  // ====================================================
+  renderB4: function(container) {
+    const s = this.adminState;
+    const orders = MedigoStore.getAdminOrders();
+
+    // Số liệu tổng quan, suy ra từ chính danh sách đơn
+    const revenue = orders.reduce((t, o) => t + o.price * o.qty, 0);
+    const shipping = orders.filter(o => o.shipping.currentStep < 4).length;
+    const pendingKeys = orders.filter(o => !o.activationKey.activated).length;
+    const expiring = orders.filter(o => MedigoStore.keyStatusOf(o).status === 'Sắp hết hạn').length;
+
+    const tab = (id, label) => `
+      <button class="range-tab ${s.stockTab === id ? 'active' : ''}" data-tab="${id}"
+              aria-pressed="${s.stockTab === id}"
+              onclick="MedigoViews.setStockTab(this.dataset.tab)">${label}</button>`;
+
+    container.innerHTML = `
+      <div class="admin-layout">
+        ${this.renderAdminSidebar('B4')}
+
+        <div class="admin-main-content">
+          <div class="admin-toolbar">
+            <h2>Kho hàng &amp; Mã kích hoạt</h2>
+            <div class="admin-toolbar-controls">
+              <div class="admin-search-box">
+                ${this.icon('search', 18)}
+                <input type="text" id="stock-search" class="admin-search-input" value="${this.esc(s.stockSearch)}"
+                       aria-label="Tìm đơn hàng hoặc mã kích hoạt"
+                       placeholder="Tìm mã đơn, khách hàng, mã kích hoạt, mã vận đơn..."
+                       oninput="MedigoViews.applyStockFilters()">
+              </div>
+              <select id="stock-status" class="form-control admin-filter" aria-label="Lọc theo trạng thái"
+                      onchange="MedigoViews.applyStockFilters()"></select>
+              <button class="btn btn-secondary" onclick="MedigoViews.exportStock()">Xuất Excel</button>
+            </div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Tổng đơn đã bán</div>
+              <div class="stat-value">${orders.length}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Doanh thu</div>
+              <div class="stat-value text-primary">${this.formatMoney(revenue)}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Đang giao</div>
+              <div class="stat-value">${shipping}</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Mã chờ kích hoạt</div>
+              <div class="stat-value text-warning">${pendingKeys}</div>
+            </div>
+          </div>
+
+          ${expiring > 0 ? `
+            <div class="callout callout-warning">
+              ${this.icon('warning', 20)}
+              <div>Có <strong>${expiring}</strong> mã kích hoạt sắp hết hạn trong ${MEDIGO_CONFIG.product.expiringSoonDays} ngày tới.</div>
+            </div>` : ''}
+
+          <div class="range-tabs" role="group" aria-label="Chọn bảng dữ liệu">
+            ${tab('orders', 'Đơn hàng')}
+            ${tab('keys', 'Mã kích hoạt')}
+          </div>
+
+          <div id="stock-table-region"></div>
+        </div>
+
+        <div id="admin-stock-drawer" class="admin-drawer" role="dialog" aria-modal="true" aria-labelledby="stock-drawer-title">
+          <div class="drawer-header">
+            <h3 id="stock-drawer-title">Chi tiết đơn hàng</h3>
+            <button class="modal-close" aria-label="Đóng" onclick="MedigoViews.closeDrawer('admin-stock-drawer')">✕</button>
+          </div>
+          <div class="drawer-body" id="drawer-stock-content"></div>
+          <div class="drawer-footer" id="drawer-stock-footer"></div>
+        </div>
+      </div>
+    `;
+
+    this.syncStockStatusFilter();
+    this.withLoading('stock-table-region', this.tableSkeleton(9, 5), () => this.renderStockTable());
+  },
+
+  /** Bộ lọc trạng thái đổi theo tab đang xem. */
+  syncStockStatusFilter: function() {
+    const sel = document.getElementById('stock-status');
+    if (!sel) return;
+    const s = this.adminState;
+    const options = s.stockTab === 'orders'
+      ? ['Chờ đóng gói', 'Đã gửi hàng', 'Đang giao', 'Đã nhận máy']
+      : ['Chờ kích hoạt', 'Đã kích hoạt', 'Sắp hết hạn', 'Hết hạn'];
+    sel.innerHTML = `<option value="">Tất cả trạng thái</option>` +
+      options.map(o => `<option value="${o}" ${s.stockStatus === o ? 'selected' : ''}>${o}</option>`).join('');
+  },
+
+  setStockTab: function(tabId) {
+    const s = this.adminState;
+    s.stockTab = tabId;
+    s.stockStatus = '';
+    s.stockPage = 1;
+    document.querySelectorAll('.range-tabs .range-tab').forEach(b => {
+      const on = b.dataset.tab === tabId;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+    this.syncStockStatusFilter();
+    this.renderStockTable();
+  },
+
+  applyStockFilters: function() {
+    const s = this.adminState;
+    const search = document.getElementById('stock-search');
+    const status = document.getElementById('stock-status');
+    if (search) s.stockSearch = search.value;
+    if (status) s.stockStatus = status.value;
+    s.stockPage = 1;
+    this.renderStockTable();
+  },
+
+  shipLabel: function(step) {
+    return ['Chờ đóng gói', 'Đã gửi hàng', 'Đang giao', 'Đã nhận máy'][step - 1] || '—';
+  },
+
+  shipBadgeClass: function(step) {
+    return step === 4 ? 'badge-active' : (step === 1 ? 'badge-locked' : 'badge-pending');
+  },
+
+  filteredStock: function() {
+    const s = this.adminState;
+    const term = s.stockSearch.trim().toLowerCase();
+
+    return MedigoStore.getAdminOrders().filter(o => {
+      if (s.stockStatus) {
+        const match = s.stockTab === 'orders'
+          ? this.shipLabel(o.shipping.currentStep) === s.stockStatus
+          : MedigoStore.keyStatusOf(o).status === s.stockStatus;
+        if (!match) return false;
+      }
+      if (!term) return true;
+      return [o.orderId, o.customerName, o.customerPhone, o.customerEmail,
+              o.activationKey.code, o.shipping.trackingCode, o.sellerAffId]
+        .some(v => String(v).toLowerCase().includes(term));
+    });
+  },
+
+  renderStockTable: function() {
+    const region = document.getElementById('stock-table-region');
+    if (!region) return;
+
+    const s = this.adminState;
+    const pageSize = MEDIGO_CONFIG.admin.pageSize;
+    const all = this.filteredStock();
+    const totalPages = Math.max(1, Math.ceil(all.length / pageSize));
+    s.stockPage = Math.min(s.stockPage, totalPages);
+    const rows = all.slice((s.stockPage - 1) * pageSize, s.stockPage * pageSize);
+
+    if (!all.length) {
+      region.innerHTML = `
+        <div class="data-table-wrapper">
+          ${this.emptyState('box', 'Không có bản ghi nào khớp bộ lọc',
+            'Thử đổi trạng thái hoặc từ khóa tìm kiếm.',
+            `<button class="btn btn-secondary" onclick="MedigoViews.clearStockFilters()">Xóa bộ lọc</button>`)}
+        </div>`;
+      return;
+    }
+
+    const body = s.stockTab === 'orders'
+      ? `
+        <thead>
+          <tr>
+            <th scope="col">Mã đơn</th>
+            <th scope="col">Khách hàng</th>
+            <th scope="col">Liên hệ</th>
+            <th scope="col">Seller giới thiệu</th>
+            <th scope="col">Ngày đặt</th>
+            <th scope="col">Giá trị</th>
+            <th scope="col">Đơn vị vận chuyển</th>
+            <th scope="col">Mã vận đơn</th>
+            <th scope="col">Trạng thái giao</th>
+            <th scope="col">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(o => `
+            <tr>
+              <td><strong>${this.esc(o.orderId)}</strong></td>
+              <td>${this.esc(o.customerName)}</td>
+              <td>${this.esc(this.maskPhone(o.customerPhone))}</td>
+              <td><strong class="text-primary">${this.esc(o.sellerAffId)}</strong></td>
+              <td>${this.esc(o.orderDate)}</td>
+              <td><strong>${this.formatMoney(o.price * o.qty)}</strong></td>
+              <td>${this.esc(o.shipping.carrier)}</td>
+              <td>${this.esc(o.shipping.trackingCode)}</td>
+              <td><span class="badge ${this.shipBadgeClass(o.shipping.currentStep)}">${this.esc(this.shipLabel(o.shipping.currentStep))}</span></td>
+              <td><button class="btn btn-secondary" data-order="${this.esc(o.orderId)}"
+                          onclick="MedigoViews.openStockDrawer(this.dataset.order)">Chi tiết ›</button></td>
+            </tr>`).join('')}
+        </tbody>`
+      : `
+        <thead>
+          <tr>
+            <th scope="col">Mã kích hoạt</th>
+            <th scope="col">Đơn hàng</th>
+            <th scope="col">Khách hàng</th>
+            <th scope="col">Ngày cấp</th>
+            <th scope="col">Ngày kích hoạt</th>
+            <th scope="col">Ngày hết hạn</th>
+            <th scope="col">Còn lại</th>
+            <th scope="col">Trạng thái</th>
+            <th scope="col">Thao tác</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(o => {
+            const k = MedigoStore.keyStatusOf(o);
+            return `
+            <tr>
+              <td><strong class="mono">${this.esc(o.activationKey.code)}</strong></td>
+              <td>${this.esc(o.orderId)}</td>
+              <td>${this.esc(o.customerName)}</td>
+              <td>${this.esc(o.orderDate)}</td>
+              <td>${this.esc(k.activatedDate)}</td>
+              <td>${this.esc(k.expiredDate)}</td>
+              <td>${k.daysRemaining === null ? '—' : k.daysRemaining + ' ngày'}</td>
+              <td><span class="badge ${this.statusBadgeClass(k.status)}">${this.esc(k.status)}</span></td>
+              <td><button class="btn btn-secondary" data-order="${this.esc(o.orderId)}"
+                          onclick="MedigoViews.openStockDrawer(this.dataset.order)">Chi tiết ›</button></td>
+            </tr>`;
+          }).join('')}
+        </tbody>`;
+
+    region.innerHTML = `
+      <div class="data-table-wrapper">
+        <table class="data-table">${body}</table>
+      </div>
+      ${this.renderPagination(all.length, s.stockPage, totalPages, 'MedigoViews.gotoStockPage')}
+    `;
+  },
+
+  gotoStockPage: function(page) {
+    this.adminState.stockPage = page;
+    this.renderStockTable();
+  },
+
+  clearStockFilters: function() {
+    Object.assign(this.adminState, { stockSearch: '', stockStatus: '', stockPage: 1 });
+    MedigoApp.render('B4');
+  },
+
+  exportStock: function() {
+    const n = this.filteredStock().length;
+    const what = this.adminState.stockTab === 'orders' ? 'đơn hàng' : 'mã kích hoạt';
+    this.toast(`Đã xuất ${n} bản ghi ${what} ra file Excel.`);
+  },
+
+  openStockDrawer: function(orderId) {
+    const o = MedigoStore.getAdminOrders().find(x => x.orderId === orderId);
+    if (!o) { this.toast('Không tìm thấy đơn hàng.'); return; }
+
+    const k = MedigoStore.keyStatusOf(o);
+    const steps = ['Chờ đóng gói', 'Đã gửi hàng', 'Đang giao', 'Đã nhận máy'];
+    const cur = o.shipping.currentStep;
+    const stepClass = (idx) => (idx + 1 < cur ? 'passed' : (idx + 1 === cur ? 'active' : ''));
+
+    document.getElementById('drawer-stock-content').innerHTML = `
+      <div class="drawer-title-block">
+        <h2>${this.esc(o.orderId)}</h2>
+        <div class="drawer-badges">
+          <span class="badge ${this.shipBadgeClass(cur)}">${this.esc(this.shipLabel(cur))}</span>
+          <span class="badge ${this.statusBadgeClass(k.status)}">${this.esc(k.status)}</span>
+        </div>
+      </div>
+
+      <div class="drawer-section">
+        <h4>Khách hàng</h4>
+        <p>${this.icon('users', 16)} Họ tên: <strong>${this.esc(o.customerName)}</strong></p>
+        <p>${this.icon('phone', 16)} SĐT: <strong>${this.esc(o.customerPhone)}</strong></p>
+        <p>${this.icon('mail', 16)} Email: <strong>${this.esc(o.customerEmail)}</strong></p>
+        <p>Seller giới thiệu: <strong>${this.esc(o.sellerAffId)}</strong></p>
+      </div>
+
+      <div class="drawer-section">
+        <h4>Đơn hàng</h4>
+        <div class="summary-line"><span>Sản phẩm</span><strong>${this.esc(MEDIGO_CONFIG.product.code)} × ${o.qty}</strong></div>
+        <div class="summary-line"><span>Ngày đặt</span><strong>${this.esc(o.orderDate)}</strong></div>
+        <hr class="divider">
+        <div class="summary-total"><span>Giá trị</span><strong class="text-price">${this.formatMoney(o.price * o.qty)}</strong></div>
+      </div>
+
+      <div class="drawer-section">
+        <h4>${this.icon('truck', 16)} Vận chuyển — ${this.esc(o.shipping.carrier)}</h4>
+        <div class="shipping-steps">
+          ${steps.map((label, i) => `<div class="shipping-step-node ${stepClass(i)}">${this.esc(label)}</div>`).join('')}
+        </div>
+        <p>Mã vận đơn: <strong>${this.esc(o.shipping.trackingCode)}</strong></p>
+      </div>
+
+      <div class="drawer-section">
+        <h4>${this.icon('key', 16)} Mã kích hoạt phần mềm</h4>
+        <p class="stock-key-code">${this.esc(o.activationKey.code)}</p>
+        <div class="summary-line"><span>Ngày kích hoạt</span><strong>${this.esc(k.activatedDate)}</strong></div>
+        <div class="summary-line"><span>Ngày hết hạn</span><strong>${this.esc(k.expiredDate)}</strong></div>
+        <div class="summary-line"><span>Thời hạn còn lại</span>
+          <strong class="${k.status === 'Sắp hết hạn' ? 'text-warning' : ''}">${k.daysRemaining === null ? 'Chưa kích hoạt' : k.daysRemaining + ' ngày'}</strong></div>
+        ${o.activationKey.activated ? `
+          <div class="progress-track">
+            <div class="progress-fill ${k.status !== 'Đã kích hoạt' ? 'is-warning' : ''}" style="width: ${k.percentUsed}%"></div>
+          </div>` : ''}
+      </div>
+    `;
+
+    document.getElementById('drawer-stock-footer').innerHTML = `
+      <div class="drawer-actions">
+        <button class="btn btn-secondary btn-full" data-copy="${this.esc(o.activationKey.code)}"
+                onclick="MedigoViews.copyText(this.dataset.copy, 'Đã sao chép mã kích hoạt.')">
+          ${this.icon('copy', 18)} Sao chép mã kích hoạt
+        </button>
+        <button class="btn btn-secondary btn-full" data-email="${this.esc(o.customerEmail)}"
+                onclick="MedigoViews.toast('Đã gửi lại mã kích hoạt tới ' + this.dataset.email + '.')">
+          ${this.icon('mail', 18)} Gửi lại mã qua email
+        </button>
+        ${cur < 4 ? `
+          <button class="btn btn-success btn-full btn-lg" data-order="${this.esc(o.orderId)}"
+                  onclick="MedigoViews.markDelivered(this.dataset.order, this)">Đánh dấu đã giao</button>` : ''}
+      </div>
+    `;
+
+    const title = document.getElementById('stock-drawer-title');
+    if (title) title.textContent = this.adminState.stockTab === 'orders' ? 'Chi tiết đơn hàng' : 'Chi tiết mã kích hoạt';
+
+    this.openDrawer('admin-stock-drawer');
+  },
+
+  markDelivered: function(orderId, btn) {
+    const o = MedigoStore.getAdminOrders().find(x => x.orderId === orderId);
+    if (!o) return;
+    const lines = [
+      'Xác nhận đơn đã giao tới khách?',
+      '',
+      'Đơn: ' + o.orderId,
+      'Khách: ' + o.customerName,
+      'Mã vận đơn: ' + o.shipping.trackingCode
+    ];
+    if (!window.confirm(lines.join('\n'))) return;
+    if (!this.lockButton(btn)) return;
+
+    MedigoStore.markOrderDelivered(orderId);
+    this.closeDrawer('admin-stock-drawer');
+    this.toast('Đã đánh dấu đơn ' + orderId + ' là đã giao.');
+    MedigoApp.render('B4');
   },
 
   /** Mọi thao tác tài chính đều mở hộp thoại xác nhận nêu rõ số tiền và người nhận (Spec B3). */

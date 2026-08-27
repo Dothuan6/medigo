@@ -215,7 +215,10 @@
   top: 0;
   right: 0;
   bottom: 0;
-  width: min(480px, 100vw);  /* không tràn trên màn hẹp hơn 480px */
+  /* Dùng 100% chứ KHÔNG dùng 100vw: 100vw tính cả bề rộng thanh cuộn dọc,
+     trong khi right:0 neo theo vùng nội dung — chênh nhau đúng bằng thanh cuộn
+     nên drawer bị đẩy lệch ra ngoài mép trái ở màn hẹp. */
+  width: min(480px, 100%);
   background-color: var(--c12);
   box-shadow: -8px 0 30px rgba(0,0,0,0.15);
   z-index: 500;

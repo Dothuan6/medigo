@@ -305,7 +305,7 @@
   .checkout-grid { grid-template-columns: minmax(0, 1fr) 380px; }
   .checkout-aside {
     position: sticky;
-    top: 88px; /* chừa chỗ cho header dính */
+    top: 88px; /* chừa chỗ cho header dính phía trên */
   }
 }
 
@@ -629,6 +629,48 @@
   margin-top: var(--s4);
 }
 
+/* ---------- Ô chỉ đọc (mã giới thiệu ở A2) ---------- */
+.locked-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.locked-field .form-control[readonly] {
+  background-color: var(--surface);
+  color: var(--c2);
+  cursor: default;
+  padding-right: var(--s10);
+}
+.locked-field .form-control[readonly]:hover { border-color: var(--c7); }
+.locked-field .ico {
+  position: absolute;
+  right: var(--s5);
+  pointer-events: none;
+}
+
+/* ---------- Modal đổi tài khoản thụ hưởng (mở từ A12) ---------- */
+.change-bank-card {
+  max-width: 440px;
+  max-height: calc(100vh - var(--s9));
+  overflow-y: auto;
+}
+.change-bank-card .modal-title { margin-bottom: 2px; }
+.change-bank-card .form-group:first-of-type { margin-top: var(--s6); }
+.change-bank-card .otp-group { margin-top: var(--s6); }
+.change-bank-card .modal-actions { margin-top: var(--s6); }
+.change-bank-card .demo-hint { margin-top: var(--s5); }
+
+/* ---------- Modal xác nhận rút tiền (A12) ---------- */
+.withdraw-modal-card {
+  max-width: 440px;
+  max-height: calc(100vh - var(--s9));
+  overflow-y: auto;
+}
+.withdraw-modal-card .modal-title { margin-bottom: 2px; }
+.withdraw-modal-card .qr-info { margin-top: var(--s6); }
+.withdraw-modal-card .drawer-section { margin-bottom: var(--s4); }
+.withdraw-modal-card .modal-actions { margin-top: var(--s6); }
+
 /* ---------- Modal kích hoạt seller thành công (A9, đè lên A8) ---------- */
 .activated-modal-card {
   max-width: 440px;
@@ -643,6 +685,147 @@
 }
 .activated-modal-card .modal-text { margin-bottom: var(--s7); }
 .activated-modal-card .modal-actions-column { margin-top: var(--s7); }
+
+/* ---------- Menu thông tin tài khoản (header client) ---------- */
+.account-menu { position: relative; }
+
+.account-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 44px;
+  padding: var(--s2) var(--s4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  background: var(--c12);
+  color: var(--c1);
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+.account-trigger:hover { border-color: var(--c6); background: var(--tint-blue); }
+.account-trigger[aria-expanded="true"] { border-color: var(--c6); background: var(--tint-blue); }
+
+.account-avatar {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-full);
+  background: var(--c6);
+  color: var(--c12);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 15px;
+}
+.account-avatar-lg { width: 44px; height: 44px; font-size: 18px; }
+
+.account-trigger-text {
+  display: none;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+  text-align: left;
+}
+@media (min-width: 560px) {
+  .account-trigger-text { display: flex; }
+}
+.account-trigger-name { font-size: 15px; font-weight: 700; }
+.account-trigger-sub { font-size: 14px; color: var(--c5); }
+
+.account-dropdown {
+  position: absolute;
+  top: calc(100% + var(--s3));
+  right: 0;
+  z-index: 300;
+  width: min(300px, calc(100vw - var(--s8)));
+  background: var(--c12);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.account-dropdown[hidden] { display: none; }
+
+.account-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s4);
+  padding: var(--s6);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.account-head-body { min-width: 0; }
+.account-head-name {
+  font-weight: 800;
+  color: var(--c1);
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-head-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex-wrap: wrap;
+  margin-top: var(--s3);
+}
+
+.account-menu-list {
+  list-style: none;
+  margin: 0;
+  padding: var(--s3) 0;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.account-menu-group {
+  padding: var(--s4) var(--s6) var(--s2);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--c5);
+}
+
+.account-menu-sep {
+  height: 1px;
+  margin: var(--s3) 0;
+  background: var(--border);
+}
+
+.account-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  min-height: 44px;
+  padding: var(--s3) var(--s6);
+  color: var(--c1);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.account-menu-item:hover {
+  background: var(--tint-blue);
+  color: var(--c6);
+  text-decoration: none;
+}
+.account-menu-item.active { color: var(--c6); background: var(--tint-blue); }
+
+/* ---------- Kho hàng admin (B4) ---------- */
+.stock-key-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--c1);
+  word-break: break-all;
+  margin-bottom: var(--s4);
+}
+.data-table .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  white-space: nowrap;
+}
 
 /* ---------- Toast ---------- */
 .toast {
@@ -718,41 +901,4 @@
   color: var(--c6);
 }
 
-/* ---------- Thanh chuyển màn demo (góc phải trên) ---------- */
-.demo-toolbar {
-  position: fixed;
-  top: var(--s4);
-  right: var(--s4);
-  z-index: 9999;
-  background: var(--c1);
-  color: var(--c12);
-  padding: var(--s3) var(--s5);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-lg);
-  display: flex;
-  align-items: center;
-  gap: var(--s4);
-  flex-wrap: wrap;
-  max-width: calc(100vw - var(--s8));
-}
-.demo-toolbar-title {
-  color: var(--c6);
-  font-size: 14px;
-  white-space: nowrap;
-}
-.demo-toolbar-select,
-.demo-toolbar-reset {
-  background: var(--c3);
-  color: var(--c12);
-  border: 1px solid var(--c4);
-  padding: var(--s3) var(--s4);
-  border-radius: var(--r-sm);
-  font-size: 14px;
-  min-height: 44px;
-  cursor: pointer;
-}
-.demo-toolbar-reset:hover { background: var(--c4); }
-
-@media print {
-  .demo-toolbar { display: none; }
 }

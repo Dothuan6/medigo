@@ -272,39 +272,6 @@ summary:focus-visible,
 .bg-light-blue  { background-color: var(--tint-blue);   border: 1px solid var(--c6); }
 .bg-light-green { background-color: var(--tint-green);  border: 1px solid var(--c8); }
 
-/* Thanh hành động cố định đáy màn (A1). Full-width theo layout website. */
-.sticky-bottom-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background-color: var(--c12);
-  border-top: 1px solid var(--border);
-  box-shadow: 0 -4px 16px rgba(0,0,0,0.1);
-  z-index: 100;
-  padding: var(--s5) var(--s8);
-}
-
-.sticky-bottom-inner {
-  max-width: 900px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s6);
-  flex-wrap: wrap;
-}
-
-.sticky-bottom-total {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.3;
-}
-
-.sticky-bottom-total strong { font-size: 22px; }
-
-.sticky-bottom-cta { flex: 1 1 240px; }
-
 /* Modal Popup Reusable */
 .modal-backdrop {
   position: fixed;

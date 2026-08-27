@@ -21,10 +21,10 @@ const MEDIGO_SEED = {
     maskedEmail: "nguyen•••@gmail.com",
     cccd: "001092001234",
     maskedCccd: "001092••••34",
-    address: "123 Nguyễn Trãi, Phường Thanh Xuân Trung, Quận Thanh Xuân, Hà Nội",
+    // Địa chỉ hai cấp: Tỉnh/Thành phố → Phường/Xã (đã bỏ cấp Quận/Huyện)
+    address: "123 Nguyễn Trãi, Phường Thanh Xuân, Hà Nội",
     city: "Hà Nội",
-    district: "Quận Thanh Xuân",
-    ward: "Phường Thanh Xuân Trung",
+    ward: "Phường Thanh Xuân",
     dob: "15/08/1978",
     gender: "Nam",
     totalOrders: 128,
@@ -39,10 +39,8 @@ const MEDIGO_SEED = {
     // rank: KHÔNG lưu ở đây — suy ra từ totalOrders qua MEDIGO_RULES.rankFor()
   },
 
-  // Giỏ hàng
-  cart: [
-    { code: "CN02", qty: 1 }
-  ],
+  // Số lượng của đơn đang đặt (không còn giỏ hàng — mua thẳng từ trang sản phẩm)
+  orderQty: 1,
 
   /**
    * Hoa hồng theo giờ trong ngày hôm nay — dùng cho bộ lọc "Hôm nay" (A10).
@@ -286,6 +284,84 @@ const MEDIGO_SEED = {
     }
   ],
 
+  /**
+   * KHO HÀNG PHÍA ADMIN (B4) — toàn bộ đơn hàng đã bán và mã kích hoạt đi kèm.
+   * Mỗi đơn gắn đúng 01 mã kích hoạt, nên bảng "Mã kích hoạt" được suy ra từ
+   * chính danh sách này thay vì lưu thành bảng thứ hai (tránh lệch dữ liệu).
+   * Trạng thái mã KHÔNG lưu sẵn — suy ra qua MEDIGO_RULES.activationPeriod().
+   * Sinh tất định (không dùng Math.random) để mọi lần chạy đều giống nhau.
+   */
+  adminOrders: (function () {
+    const buyers = [
+      ['Nguyễn Văn A', '0908123456', 'nguyenvana@gmail.com', '923983'],
+      ['Trần Thị Bích', '0912777888', 'bichtran@gmail.com', '923983'],
+      ['Lê Văn Cường', '0987112233', 'cuongle@gmail.com', '881204'],
+      ['Phạm Thị Dung', '0934556677', 'dungpham@gmail.com', '923983'],
+      ['Ngô Thị Em', '0977889900', 'emngo@gmail.com', '770192'],
+      ['Vũ Minh Khang', '0903221144', 'khangvu@gmail.com', '881204'],
+      ['Đỗ Anh Tuấn', '0918334455', 'tuando@gmail.com', '934812'],
+      ['Hoàng Văn E', '0965447788', 'ehoang@gmail.com', '923983'],
+      ['Bùi Thị Lan', '0947556611', 'lanbui@gmail.com', '770192'],
+      ['Dương Văn Minh', '0932008899', 'minhduong@gmail.com', '881204'],
+      ['Lý Thị Nga', '0956332211', 'ngaly@gmail.com', '923983'],
+      ['Đinh Văn Phúc', '0901445566', 'phucdinh@gmail.com', '934812'],
+      ['Mai Thị Quyên', '0988117722', 'quyenmai@gmail.com', '770192'],
+      ['Trịnh Văn Rạng', '0923665544', 'rangtrinh@gmail.com', '881204']
+    ];
+    const carriers = [
+      ['VNPOST', 'VNPost Chuyển phát nhanh'],
+      ['GHN', 'Giao Hàng Nhanh'],
+      ['VTPOST', 'Viettel Post']
+    ];
+    const pad = (v, n) => String(v).padStart(n, '0');
+    const out = [];
+    const today = new Date(2026, 7, 26); // 26/08/2026
+
+    for (let i = 0; i < buyers.length; i++) {
+      const [name, phone, email, aff] = buyers[i];
+      // Đơn càng cũ càng lùi ngày, bước giao càng xa
+      const daysAgo = i * 27;
+      const d = new Date(today.getTime());
+      d.setDate(d.getDate() - daysAgo);
+      const orderDate = `${pad(d.getDate(), 2)}/${pad(d.getMonth() + 1, 2)}/${d.getFullYear()}`;
+
+      // Đơn mới nhất còn đang giao, đơn cũ đã nhận
+      const step = daysAgo < 3 ? 1 : (daysAgo < 8 ? 2 : (daysAgo < 15 ? 3 : 4));
+      const [prefix, carrier] = carriers[i % carriers.length];
+
+      // Chỉ đơn đã nhận máy mới có thể đã kích hoạt
+      const activated = step === 4 && (i % 4 !== 1);
+      let activatedDate = null;
+      if (activated) {
+        const a = new Date(d.getTime());
+        a.setDate(a.getDate() + 2); // kích hoạt 2 ngày sau khi đặt
+        activatedDate = `${pad(a.getDate(), 2)}/${pad(a.getMonth() + 1, 2)}/${a.getFullYear()}`;
+      }
+
+      out.push({
+        orderId: 'MDG-' + (88492 - i * 137),
+        customerName: name,
+        customerPhone: phone,
+        customerEmail: email,
+        sellerAffId: aff,
+        orderDate: orderDate,
+        price: 10000000,
+        qty: 1,
+        shipping: {
+          currentStep: step,
+          trackingCode: `${prefix}-${pad(112049 + i * 7331, 9)}`,
+          carrier: carrier
+        },
+        activationKey: {
+          code: `GOCARE-CN02-${pad((9982 - i * 311 + 10000) % 10000, 4)}-${pad((4410 + i * 577) % 10000, 4)}`,
+          activated: activated,
+          activatedDate: activatedDate
+        }
+      });
+    }
+    return out;
+  })(),
+
   // Yêu cầu rút tiền Admin quản lý (B3)
   // tax/netAmount KHÔNG lưu — suy ra qua MEDIGO_RULES.calcWithdrawal(amount)
   adminWithdrawals: [
@@ -351,12 +427,13 @@ const MedigoStore = {
   PREFIX: 'MEDIGO_',
   // Tăng số này mỗi khi đổi cấu trúc dữ liệu để trình duyệt cũ nạp lại seed,
   // tránh trường hợp localStorage giữ dữ liệu theo schema cũ gây lỗi render.
-  SCHEMA_VERSION: 3,
+  SCHEMA_VERSION: 6,
 
   // Các khóa được seed từ MEDIGO_SEED khi khởi tạo
   SEEDED_KEYS: [
-    'currentSeller', 'cart', 'commissionToday', 'commissionDaily', 'downlineTiers',
-    'sellerCommissionHistory', 'customerOrders', 'adminMembers', 'adminWithdrawals'
+    'currentSeller', 'orderQty', 'commissionToday', 'commissionDaily', 'downlineTiers',
+    'sellerCommissionHistory', 'customerOrders', 'adminMembers', 'adminWithdrawals',
+    'adminOrders'
   ],
 
   get: function(key, defaultVal) {
@@ -395,7 +472,7 @@ const MedigoStore = {
 
   // ---------- Đọc ----------
   getSeller:      function() { return this.get('currentSeller', MEDIGO_SEED.currentSeller); },
-  getCart:        function() { return this.get('cart', []); },
+  getOrderQty:    function() { return Math.max(1, parseInt(this.get('orderQty', 1), 10) || 1); },
   getDaily:       function() { return this.get('commissionDaily', MEDIGO_SEED.commissionDaily); },
   getToday:       function() { return this.get('commissionToday', MEDIGO_SEED.commissionToday); },
 
@@ -469,6 +546,30 @@ const MedigoStore = {
   getOrders:      function() { return this.get('customerOrders', MEDIGO_SEED.customerOrders); },
   getMembers:     function() { return this.get('adminMembers', MEDIGO_SEED.adminMembers); },
   getWithdrawals: function() { return this.get('adminWithdrawals', MEDIGO_SEED.adminWithdrawals); },
+  getAdminOrders: function() { return this.get('adminOrders', MEDIGO_SEED.adminOrders); },
+
+  /**
+   * Trạng thái mã kích hoạt của một đơn, suy ra từ ngày kích hoạt.
+   * Trả về { status, activatedDate, expiredDate, daysRemaining, percentUsed }.
+   */
+  keyStatusOf: function(order) {
+    const k = order.activationKey;
+    if (!k.activated) {
+      return { status: 'Chờ kích hoạt', activatedDate: '—', expiredDate: '—', daysRemaining: null, percentUsed: 0 };
+    }
+    const p = MEDIGO_RULES.activationPeriod(k.activatedDate);
+    return p || { status: 'Chờ kích hoạt', activatedDate: '—', expiredDate: '—', daysRemaining: null, percentUsed: 0 };
+  },
+
+  /** Đánh dấu đơn đã giao xong (bước 4). */
+  markOrderDelivered: function(orderId) {
+    const list = this.getAdminOrders();
+    const o = list.find(x => x.orderId === orderId);
+    if (!o || o.shipping.currentStep === 4) return null;
+    o.shipping.currentStep = 4;
+    this.set('adminOrders', list);
+    return o;
+  },
 
   /** aff_id đang được ghi nhận cho phiên này (bắt từ URL ở A0, xem js/app.js). */
   getAffId: function() { return this.get('aff_id', ''); },
@@ -481,19 +582,39 @@ const MedigoStore = {
     return seller;
   },
 
-  /** Số lượng sản phẩm trong giỏ (prototype chỉ bán 1 mã CN02). */
-  setCartQty: function(qty) {
-    const n = Math.max(0, parseInt(qty, 10) || 0);
-    this.set('cart', n === 0 ? [] : [{ code: 'CN02', qty: n }]);
+  /**
+   * Đổi tài khoản ngân hàng thụ hưởng của seller.
+   * Ghi vào cả hồ sơ seller và bản ghi tương ứng trong danh sách admin (B2),
+   * nếu không thì màn seller và màn admin sẽ hiển thị hai số tài khoản khác nhau.
+   * KHÔNG đụng tới aff_id — đổi thông tin nhận tiền không phải đăng ký lại.
+   */
+  saveSellerBank: function(bank) {
+    const seller = this.saveSeller({
+      bankName: bank.bankName,
+      bankAccountNo: bank.bankAccountNo,
+      bankAccountOwner: bank.bankAccountOwner
+    });
+
+    const members = this.getMembers();
+    const m = members.find(x => x.aff_id === seller.aff_id);
+    if (m) {
+      m.bankName = bank.bankName;
+      m.bankAccountNo = bank.bankAccountNo;
+      m.bankAccountOwner = bank.bankAccountOwner;
+      this.set('adminMembers', members);
+    }
+    return seller;
+  },
+
+  /** Đặt số lượng cho đơn đang mua (prototype chỉ bán 1 mã CN02). */
+  setOrderQty: function(qty) {
+    const n = Math.max(1, parseInt(qty, 10) || 1);
+    this.set('orderQty', n);
     return n;
   },
 
-  getCartQty: function() {
-    const cart = this.getCart();
-    return cart.length ? (cart[0].qty || 0) : 0;
-  },
-
-  clearCart: function() { this.set('cart', []); },
+  /** Về mặc định sau khi đặt hàng xong. */
+  resetOrderQty: function() { this.set('orderQty', 1); },
 
   /** Cổng thanh toán khách đã chọn ở màn nhận hàng (A2), dùng lại ở màn QR (A3). */
   getPaymentMethod: function() {
